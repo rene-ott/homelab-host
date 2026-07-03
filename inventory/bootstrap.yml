@@ -1,0 +1,10 @@
+---
+# Bootstrap inventory — used only for the initial setup run or recovery.
+# Connects as the install-time sudo user over password; no credentials hardcoded here.
+# Run with: ansible-playbook playbooks/bootstrap-user.yml -i inventory/bootstrap.yml -u <admin> --ask-pass --ask-become-pass
+all:
+  children:
+    bootstrap:
+      hosts:
+        atlas:
+          ansible_become: true

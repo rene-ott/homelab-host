@@ -1,0 +1,23 @@
+# Ansible
+*.retry
+.ansible/
+
+# Secrets
+.vault_pass
+vault_pass.txt
+*.vault.yml
+*.key
+*.pem
+kubeconfig*
+**/host_vars/*/secrets.yml
+**/group_vars/secrets.yml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editor
+.idea/
+.vscode/
+*.swp

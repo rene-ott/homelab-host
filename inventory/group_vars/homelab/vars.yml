@@ -1,0 +1,28 @@
+---
+# Non-secret operational variables for the `homelab` group — consumed by site.yml roles.
+# Secrets are NOT here (see secrets.sops.yml.example); they remain as workstation files and
+# SOPS-encrypted manifests in the homelab-cluster repo.
+
+# --- base OS / apt ---
+ssh_port: 22
+apt_cache_valid_time: 3600
+
+# --- firewall (role: firewall) ---
+firewall_allowed_tcp_ports:
+  - "{{ ssh_port }}"  # SSH (sourced from ssh_port so the open port can't desync)
+  - 9090  # Cockpit
+  - 6443  # K3s API
+  - 80    # HTTP ingress (Traefik)
+  - 443   # HTTPS ingress (Traefik)
+firewall_allowed_udp_ports: []
+
+# --- K3s platform (role: k3s) ---
+# Version pinned here so it is visible in one place alongside the other env-specific vars.
+k3s_version: "v1.31.4+k3s1"
+
+# --- Flux bootstrap (roles: flux_auth, flux_bootstrap) ---
+flux_bootstrap_version: "2.4.0"
+flux_bootstrap_ssh_url: ssh://git@github.com/rene-ott/homelab-cluster
+flux_bootstrap_path: clusters/core
+flux_auth_bootstrap_ssh_key_file: "{{ homelab_local_ssh_key_dir }}/flux-deploy"
+flux_bootstrap_sops_age_key_file: "{{ '~/.homelab-secrets/age/homelab.agekey' | expanduser }}"

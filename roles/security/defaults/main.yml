@@ -1,0 +1,3 @@
+---
+security_fail2ban_maxretry: 5
+security_fail2ban_bantime: 3600

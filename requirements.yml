@@ -1,0 +1,4 @@
+---
+collections:
+  - name: ansible.posix      # authorized_key
+  - name: community.general  # ufw (firewall role)

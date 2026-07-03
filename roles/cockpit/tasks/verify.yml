@@ -1,0 +1,25 @@
+---
+# Read-only health checks for cockpit. Run via playbooks/verify.yml (--tags cockpit).
+# Every task asserts via failed_when and never mutates (changed_when: false).
+- name: Verify cockpit.socket is active and enabled
+  ansible.builtin.systemd:
+    name: cockpit.socket
+  register: cockpit_socket
+  changed_when: false
+  failed_when: >
+    cockpit_socket.status.ActiveState != 'active'
+    or cockpit_socket.status.UnitFileState != 'enabled'
+
+- name: Verify Cockpit is listening on 9090
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 9090
+    timeout: 5
+  changed_when: false
+
+- name: Verify Cockpit web UI responds on 9090
+  ansible.builtin.uri:
+    url: https://localhost:9090
+    validate_certs: false
+    status_code: 200
+  changed_when: false

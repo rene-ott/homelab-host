@@ -1,0 +1,13 @@
+---
+- name: Install cockpit
+  ansible.builtin.apt:
+    name: cockpit
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ apt_cache_valid_time }}"
+
+- name: Enable and start cockpit.socket
+  ansible.builtin.service:
+    name: cockpit.socket
+    state: started
+    enabled: true

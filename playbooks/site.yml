@@ -1,0 +1,26 @@
+---
+# Main playbook — applies all roles in dependency order.
+# Run a single role: ansible-playbook playbooks/site.yml --tags <role>
+
+- name: Configure homelab servers
+  hosts: homelab
+  become: true
+
+  roles:
+    - role: security
+      tags: [security]
+
+    - role: firewall
+      tags: [firewall]
+
+    - role: cockpit
+      tags: [cockpit]
+
+    - role: k3s
+      tags: [k3s]
+
+    - role: flux_auth
+      tags: [flux_auth]
+
+    - role: flux_bootstrap
+      tags: [flux_bootstrap]

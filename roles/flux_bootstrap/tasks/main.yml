@@ -1,0 +1,101 @@
+---
+- name: Download flux CLI archive
+  ansible.builtin.get_url:
+    url: "https://github.com/fluxcd/flux2/releases/download/v{{ flux_bootstrap_version }}/flux_{{ flux_bootstrap_version }}_linux_amd64.tar.gz"
+    dest: "/tmp/flux_{{ flux_bootstrap_version }}_linux_amd64.tar.gz"
+    mode: "0644"
+
+- name: Install flux CLI
+  ansible.builtin.unarchive:
+    src: "/tmp/flux_{{ flux_bootstrap_version }}_linux_amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+    creates: /usr/local/bin/flux
+
+- name: Check if flux-system namespace exists
+  ansible.builtin.command: k3s kubectl get namespace flux-system
+  register: flux_bootstrap_ns_check
+  failed_when: false
+  changed_when: false
+
+- name: Stat SOPS Age key on the workstation
+  ansible.builtin.stat:
+    path: "{{ flux_bootstrap_sops_age_key_file }}"
+  register: flux_bootstrap_age_key_stat
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Fail if SOPS Age key is missing
+  ansible.builtin.assert:
+    that: flux_bootstrap_age_key_stat.stat.exists
+    fail_msg: |
+      Missing SOPS age key:
+
+        {{ flux_bootstrap_sops_age_key_file }}
+
+      Generate it by running:
+        ./scripts/init-workstation.sh
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Bootstrap Flux CD with a deploy key
+  when: flux_bootstrap_ns_check.rc != 0
+  block:
+    - name: Create a temp file for the Flux deploy key
+      ansible.builtin.tempfile:
+        state: file
+        prefix: flux-deploy-key-
+      register: flux_key_tmp
+
+    - name: Stage the Flux deploy private key on the server
+      ansible.builtin.copy:
+        content: "{{ lookup('file', flux_auth_bootstrap_ssh_key_file) }}"
+        dest: "{{ flux_key_tmp.path }}"
+        mode: "0600"
+      no_log: true
+
+    - name: Bootstrap Flux CD
+      ansible.builtin.command:
+        cmd: >
+          /usr/local/bin/flux bootstrap git
+          --url={{ flux_bootstrap_ssh_url }}
+          --branch=main
+          --path={{ flux_bootstrap_path }}
+          --private-key-file={{ flux_key_tmp.path }}
+          --silent
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: true
+  always:
+    - name: Remove the staged Flux deploy key
+      ansible.builtin.file:
+        path: "{{ flux_key_tmp.path }}"
+        state: absent
+      when: flux_key_tmp.path is defined
+
+- name: Check if sops-age secret exists
+  ansible.builtin.command: k3s kubectl get secret sops-age -n flux-system
+  register: flux_bootstrap_sops_secret_check
+  failed_when: false
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Inject SOPS age private key into flux-system/sops-age
+  when: flux_bootstrap_sops_secret_check.rc != 0
+  ansible.builtin.command:
+    cmd: k3s kubectl apply -f -
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: sops-age
+        namespace: flux-system
+      type: Opaque
+      data:
+        age.agekey: "{{ lookup('file', flux_bootstrap_sops_age_key_file) | b64encode }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true

@@ -1,0 +1,14 @@
+---
+# Run once on a fresh VPS to provision the `ansible` automation user.
+# Prerequisite: run scripts/init-workstation.sh first.
+#
+# Usage:
+#   ansible-playbook playbooks/bootstrap-user.yml -i inventory/bootstrap.yml -u <admin> --ask-pass --ask-become-pass
+#
+# After bootstrap, all normal runs use: ansible-playbook playbooks/site.yml
+
+- name: Create or repair Ansible automation user on VPS
+  hosts: bootstrap
+  become: true
+  roles:
+    - bootstrap_user

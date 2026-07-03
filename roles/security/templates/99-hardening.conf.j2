@@ -1,0 +1,8 @@
+Port {{ ssh_port }}
+PermitRootLogin no
+PubkeyAuthentication yes
+MaxAuthTries 3
+LoginGraceTime 60
+
+Match User ansible
+    PasswordAuthentication no

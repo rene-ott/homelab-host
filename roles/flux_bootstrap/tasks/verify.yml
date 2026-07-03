@@ -1,0 +1,28 @@
+---
+# Read-only health checks for Flux CD. Run via playbooks/verify.yml (--tags flux_bootstrap).
+# Every task asserts via failed_when/rc and never mutates (changed_when: false).
+
+- name: Verify Flux controllers are healthy
+  ansible.builtin.command: /usr/local/bin/flux check
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: flux_check
+  changed_when: false
+  # `flux check` exits non-zero when a controller is unhealthy → task fails on rc.
+
+# Filter to ready kustomizations and assert flux-system is present. This avoids the
+# SUSPENDED=False trap of grepping the full `flux get kustomizations` table: an un-ready
+# flux-system is filtered out → absent from stdout → the check fails.
+- name: Verify Flux is reconciling the apps kustomization
+  ansible.builtin.command: /usr/local/bin/flux get kustomizations --status-selector ready=true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: flux_ks
+  changed_when: false
+  failed_when: flux_ks.rc != 0 or 'flux-system' not in flux_ks.stdout
+
+- name: Verify sops-age Secret exists in flux-system
+  ansible.builtin.command: k3s kubectl get secret sops-age -n flux-system
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
