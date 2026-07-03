@@ -1,0 +1,25 @@
+---
+# Tears down K3s ONLY — service, data, certs, CNI/iptables rules, binaries.
+# Does not touch security/firewall/cockpit. After this, playbooks/site.yml
+# does a from-scratch K3s install + Flux bootstrap (new Let's Encrypt cert included).
+#
+# Usage:
+#   ansible-playbook playbooks/teardown-k3s.yml -e teardown_confirm=true
+
+- name: Tear down K3s
+  hosts: homelab
+  become: true
+
+  tasks:
+    - name: Require explicit confirmation
+      ansible.builtin.fail:
+        msg: >-
+          Refusing to tear down K3s without confirmation — this deletes the cluster,
+          its data, and its certs. Re-run with: -e teardown_confirm=true
+      when: not (teardown_confirm | default(false) | bool)
+
+    - name: Tear down K3s
+      ansible.builtin.import_role:
+        name: k3s
+        tasks_from: teardown
+      tags: [k3s]

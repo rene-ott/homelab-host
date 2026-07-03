@@ -1,0 +1,12 @@
+---
+# Removes K3s entirely from the node: service, data (cluster datastore + TLS/certs),
+# CNI/iptables rules, and installed binaries. Idempotent — skips cleanly if the
+# uninstall script isn't present (K3s not installed, or already torn down).
+- name: Check for the k3s uninstall script
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s-uninstall.sh
+  register: k3s_uninstall_script
+
+- name: Run k3s-uninstall.sh
+  ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+  when: k3s_uninstall_script.stat.exists
