@@ -40,6 +40,38 @@
   run_once: true
   become: false
 
+- name: Create flux-system namespace
+  when: flux_bootstrap_ns_check.rc != 0
+  ansible.builtin.command: k3s kubectl create namespace flux-system
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+- name: Check if sops-age secret exists
+  ansible.builtin.command: k3s kubectl get secret sops-age -n flux-system
+  register: flux_bootstrap_sops_secret_check
+  failed_when: false
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Inject SOPS age private key into flux-system/sops-age
+  when: flux_bootstrap_sops_secret_check.rc != 0
+  ansible.builtin.command:
+    cmd: k3s kubectl apply -f -
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: sops-age
+        namespace: flux-system
+      type: Opaque
+      data:
+        age.agekey: "{{ lookup('file', flux_bootstrap_sops_age_key_file) | b64encode }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true
+
 - name: Bootstrap Flux CD with a deploy key
   when: flux_bootstrap_ns_check.rc != 0
   block:
@@ -74,28 +106,3 @@
         path: "{{ flux_key_tmp.path }}"
         state: absent
       when: flux_key_tmp.path is defined
-
-- name: Check if sops-age secret exists
-  ansible.builtin.command: k3s kubectl get secret sops-age -n flux-system
-  register: flux_bootstrap_sops_secret_check
-  failed_when: false
-  changed_when: false
-  environment:
-    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-
-- name: Inject SOPS age private key into flux-system/sops-age
-  when: flux_bootstrap_sops_secret_check.rc != 0
-  ansible.builtin.command:
-    cmd: k3s kubectl apply -f -
-    stdin: |
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: sops-age
-        namespace: flux-system
-      type: Opaque
-      data:
-        age.agekey: "{{ lookup('file', flux_bootstrap_sops_age_key_file) | b64encode }}"
-  environment:
-    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  no_log: true
