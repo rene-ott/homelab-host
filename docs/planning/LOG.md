@@ -9,6 +9,12 @@ One line per shipped change, newest first — the scannable *why*. Git holds the
 
 - 2026-07-04 — added `storage` role: ensures shared, app-agnostic directory roots (`/srv/media{,/movies,/tv,/music}`, `/srv/config`, `/srv/cache`) exist, owned 1000:1000, mode 0755, ahead of k3s in site.yml — apps still self-provision their own subdirectories via hostPath in homelab-cluster
 
+- 2026-07-04 — added `scripts/cluster.sh`: interactive bootstrap/teardown/verify menu for the K3s+Flux cluster, driving `site.yml` and `teardown-k3s.yml` with the relevant tags — replaces the single-purpose `teardown-k3s.sh` from the same day
+
+- 2026-07-04 — added `scripts/quick-deploy.sh`: chains `bootstrap-user.yml` → `site.yml` → `verify.yml` in one prompt-and-go run for a fresh server
+
+- 2026-07-04 — added `playbooks/teardown-k3s.yml`: uninstalls K3s only (service, data, certs, CNI/iptables, binaries) via the installer's own uninstall script, guarded by `-e teardown_confirm=true` since it's destructive — lets `site.yml` re-provision K3s + Flux cleanly afterward
+
 - 2026-07-04 — collapsed flux_bootstrap's SOPS age key check from stat+assert into a single assert (`is file`), matching the pattern already used in flux_auth's deploy-key check
 
 - 2026-07-04 — audited all roles/playbooks for unnecessary tasks and ordering; site.yml role order confirmed correct, no removals needed; documented the intentional duplicate flux-system namespace check in flux_auth/flux_bootstrap (kept for `--tags` standalone runs, not a bug)

@@ -74,6 +74,24 @@ ansible-playbook playbooks/verify.yml               # read-only health check
 ansible-lint playbooks/site.yml
 ```
 
+## Cluster convenience scripts
+
+Shortcuts over the playbook commands above, for the common flows:
+
+```bash
+./scripts/quick-deploy.sh   # fresh server: bootstrap-user -> site -> verify, one prompt-and-go run
+./scripts/cluster.sh        # interactive menu: bootstrap / teardown / verify the K3s+Flux cluster
+```
+
+`cluster.sh`'s teardown option runs `playbooks/teardown-k3s.yml`, which deletes the K3s cluster,
+its data, and its certs (not security/firewall/cockpit) so `site.yml` can reprovision K3s + Flux
+from scratch, e.g. after upstream corruption or credentials rotation. It refuses to run without
+`-e teardown_confirm=true`:
+
+```bash
+ansible-playbook playbooks/teardown-k3s.yml -e teardown_confirm=true
+```
+
 ## Samba share on Windows 11
 
 The `samba` role exposes `/srv/media` as a guest-only share (no password). Windows 10/11 disable
