@@ -20,17 +20,9 @@
   failed_when: false
   changed_when: false
 
-- name: Stat SOPS Age key on the workstation
-  ansible.builtin.stat:
-    path: "{{ flux_bootstrap_sops_age_key_file }}"
-  register: flux_bootstrap_age_key_stat
-  delegate_to: localhost
-  run_once: true
-  become: false
-
 - name: Fail if SOPS Age key is missing
   ansible.builtin.assert:
-    that: flux_bootstrap_age_key_stat.stat.exists
+    that: flux_bootstrap_sops_age_key_file is file
     fail_msg: |
       Missing SOPS age key:
 
