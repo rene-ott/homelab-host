@@ -1,0 +1,34 @@
+# {{ ansible_managed }}
+
+[global]
+   workgroup = {{ samba_workgroup }}
+   server string = {{ samba_server_string }}
+   netbios name = {{ ansible_hostname }}
+
+   security = user
+   map to guest = bad user
+   guest account = nobody
+
+   server min protocol = {{ samba_min_protocol }}
+
+   load printers = no
+   printing = bsd
+   printcap name = /dev/null
+   disable spoolss = yes
+
+   log file = /var/log/samba/log.%m
+   max log size = 1000
+   dns proxy = no
+
+[{{ samba_share_name }}]
+   comment = {{ samba_share_comment }}
+   path = {{ samba_share_path }}
+   browseable = yes
+   guest ok = yes
+   guest only = yes
+   read only = no
+   writable = yes
+   force user = {{ samba_force_user }}
+   force group = {{ samba_force_group }}
+   create mask = {{ samba_create_mask }}
+   directory mask = {{ samba_directory_mask }}

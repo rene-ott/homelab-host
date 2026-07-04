@@ -19,6 +19,12 @@
         tasks_from: verify
       tags: [verify, cockpit]
 
+    - name: Verify samba
+      ansible.builtin.import_role:
+        name: samba
+        tasks_from: verify
+      tags: [verify, samba]
+
     - name: Verify k3s
       ansible.builtin.import_role:
         name: k3s

@@ -61,6 +61,7 @@ commands from here. See `docs/architecture.md` for the full picture.
 | firewall | ufw rules (reads `inventory/group_vars/homelab/vars.yml`) |
 | cockpit | Web management UI on port 9090 |
 | storage | Shared, app-agnostic host directory roots for K3s apps (media/config/cache) |
+| samba | Guest, read-write SMB share exposing `/srv/media` over the network (port 445) |
 | k3s | K3s platform installation and configuration (wait for node Ready) |
 | flux_auth | Flux CD deploy-key lifecycle: verify key exists, display pubkey for GitHub registration, gate before bootstrap |
 | flux_bootstrap | Flux CD bootstrap: install flux CLI, run flux bootstrap git, optionally seed sops-age Secret |

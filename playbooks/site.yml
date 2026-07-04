@@ -19,6 +19,9 @@
     - role: storage
       tags: [storage]
 
+    - role: samba
+      tags: [samba]
+
     - role: k3s
       tags: [k3s]
 

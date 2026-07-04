@@ -1,0 +1,15 @@
+---
+samba_share_name: media
+samba_share_path: /srv/media
+samba_share_comment: "Homelab media share (guest, read-write)"
+
+samba_workgroup: WORKGROUP
+samba_server_string: "%h media server"
+
+# Must match storage_owner/storage_group in roles/storage/defaults/main.yml (1000:1000).
+samba_force_user: 1000
+samba_force_group: 1000
+
+samba_create_mask: "0664"
+samba_directory_mask: "0775"
+samba_min_protocol: SMB2_10

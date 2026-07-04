@@ -1,0 +1,30 @@
+---
+- name: Install samba
+  ansible.builtin.apt:
+    name:
+      - samba
+      - samba-common-bin
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ apt_cache_valid_time }}"
+
+- name: Deploy smb.conf
+  ansible.builtin.template:
+    src: smb.conf.j2
+    dest: /etc/samba/smb.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart smbd
+
+- name: Enable and start smbd
+  ansible.builtin.service:
+    name: smbd
+    state: started
+    enabled: true
+
+- name: Disable and stop nmbd
+  ansible.builtin.service:
+    name: nmbd
+    state: stopped
+    enabled: false

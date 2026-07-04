@@ -1,0 +1,24 @@
+---
+# Read-only health checks for samba. Run via playbooks/verify.yml (--tags samba).
+# Every task asserts via failed_when and never mutates (changed_when: false).
+- name: Verify smbd is active and enabled
+  ansible.builtin.systemd:
+    name: smbd
+  register: samba_smbd
+  changed_when: false
+  failed_when: >
+    samba_smbd.status.ActiveState != 'active'
+    or samba_smbd.status.UnitFileState != 'enabled'
+
+- name: Verify smbd is listening on 445
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 445
+    timeout: 5
+  changed_when: false
+
+- name: Verify smb.conf syntax is valid
+  ansible.builtin.command: testparm -s
+  register: samba_testparm
+  changed_when: false
+  failed_when: samba_testparm.rc != 0
