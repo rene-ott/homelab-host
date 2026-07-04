@@ -3,6 +3,8 @@
 One line per shipped change, newest first — the scannable *why*. Git holds the diff
 (`git log --grep=<keyword>`). Older entries describe the repo state at that time and may mention removed setup surfaces.
 
+- 2026-07-04 — documented Windows 11 SMB fix in README: `AllowInsecureGuestAuth` registry command (Windows blocks insecure guest logons by default, needed to reach the guest-only `samba` share) plus an optional combined command that also maps a DNS name to the server IP in the Windows hosts file
+
 - 2026-07-04 — added `samba` role: guest, read-write SMB share on `/srv/media` (force user/group 1000:1000 matching storage's ownership), port 445 opened in firewall, `nmbd` explicitly disabled (SMB2+ direct only) — supersedes the placeholder samba role removed 2026-06-20 for being speculative; this one is a full implementation
 
 - 2026-07-04 — added `storage` role: ensures shared, app-agnostic directory roots (`/srv/media{,/movies,/tv,/music}`, `/srv/config`, `/srv/cache`) exist, owned 1000:1000, mode 0755, ahead of k3s in site.yml — apps still self-provision their own subdirectories via hostPath in homelab-cluster
