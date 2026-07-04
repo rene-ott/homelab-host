@@ -74,6 +74,25 @@ ansible-playbook playbooks/verify.yml               # read-only health check
 ansible-lint playbooks/site.yml
 ```
 
+## Samba share on Windows 11
+
+The `samba` role exposes `/srv/media` as a guest-only share (no password). Windows 10/11 disable
+"insecure guest logons" by default, so connecting to `\\<server-ip>\media` fails or prompts for
+credentials that don't exist. Enable it once on each Windows client, as admin, then reboot (or
+restart the Workstation service):
+
+```
+reg add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v AllowInsecureGuestAuth /t REG_DWORD /d 1 /f
+```
+
+Optionally also map a DNS name to the server IP in the Windows hosts file, so you can use
+`\\atlas.local\media` instead of the raw IP. Single PowerShell command (as Administrator, prompts
+for the IP):
+
+```powershell
+$ip = Read-Host "Server IP"; Add-Content -Path "$env:WinDir\System32\drivers\etc\hosts" -Value "`n$ip atlas.local"; reg add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v AllowInsecureGuestAuth /t REG_DWORD /d 1 /f
+```
+
 ## Secrets backup
 
 ```bash
