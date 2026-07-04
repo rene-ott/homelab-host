@@ -150,7 +150,9 @@ in `~/.ssh/config`. All homelab secrets and config live under a single directory
 └── age/
     └── homelab.agekey   # SOPS age keypair — private key stays local, never committed
 
-~/.homelab-backups/      # encrypted backup archives
+~/.homelab-backups/
+├── secrets/             # encrypted secrets backups (scripts/backup-secrets.sh)
+└── config/              # plain /srv/config backups (scripts/backup-config.sh)
 ```
 
 `~/.ssh/config` contains one line: `Include ~/.homelab-secrets/ssh/config`.
@@ -169,7 +171,7 @@ in `~/.ssh/config`. All homelab secrets and config live under a single directory
 
 **Encryption:** Age passphrase mode (`age -p`). The backup is not encrypted with the homelab Age key — that key is *inside* the backup, so using it would be circular. The passphrase must be kept in a password manager.
 
-**Backup location:** `~/.homelab-backups/YYYYMMDD-HHMMSS.tar.gz.age`
+**Backup location:** `~/.homelab-backups/secrets/YYYYMMDD-HHMMSS.tar.gz.age`
 
 ```bash
 # Interactive — prompts for backup or restore, then restore source
@@ -179,6 +181,29 @@ scripts/backup-secrets.sh
 `restore` prompts before overwriting any conflicting file and also ensures `~/.ssh/config` contains
 `Include ~/.homelab-secrets/ssh/config`, inserting at the top if missing. Auto-detection fails if
 zero or more than one backup is present — delete extras manually.
+
+### Server config backup and restore
+
+`scripts/backup-config.sh` is the server-side counterpart to `backup-secrets.sh`, same interactive
+backup/restore menu style. It backs up and restores `/srv/config` (the host directory K3s apps
+write their config into via hostPath) between the server and the workstation. It is **not** part of
+Ansible `site.yml` and is never run automatically.
+
+**Backup:** streams the whole `/srv/config` tree over SSH (`ssh atlas sudo tar czf - -C /srv
+config`) straight into a timestamped tarball — no temp file is ever left on the server. This is a
+first pass: the archive is a plain, **unencrypted** tarball, and there is no retention/pruning of
+old backups.
+
+**Backup location:** `~/.homelab-backups/config/config-YYYYMMDD-HHMMSS.tar.gz`
+
+**Restore:** lists all local backups (newest first), prompts which one to extract (default: most
+recent), confirms before extracting, then streams it back over SSH (`ssh atlas sudo tar xzf - -C
+/srv --numeric-owner`). Files already on the server with the same path are overwritten; anything
+else under `/srv/config` is left untouched (extraction never deletes).
+
+```bash
+scripts/backup-config.sh   # interactive — prompts for backup or restore
+```
 
 ## Port Management
 

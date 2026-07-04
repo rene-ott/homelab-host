@@ -7,7 +7,7 @@ AGE_DIR="${SECRETS_DIR}/age"
 AGE_KEY="${AGE_DIR}/homelab.agekey"
 SSH_ALIAS="${KEY_DIR}/config"
 SSH_CONFIG="${HOME}/.ssh/config"
-BACKUP_DIR="${HOME}/.homelab-backups"
+BACKUP_DIR="${HOME}/.homelab-backups/secrets"
 INCLUDE_LINE="Include ~/.homelab-secrets/ssh/config"
 
 SECRET_FILES=(

@@ -97,7 +97,9 @@ no manual `age-keygen` or `ssh-keygen` needed. Keys live under a single local di
 └── age/
     └── homelab.agekey   # SOPS age keypair — private key stays local, never committed
 
-~/.homelab-backups/      # encrypted backup archives (scripts/backup-secrets.sh)
+~/.homelab-backups/
+├── secrets/             # encrypted secrets backups (scripts/backup-secrets.sh)
+└── config/              # plain /srv/config backups (scripts/backup-config.sh)
 ```
 
 `~/.ssh/config` gets one `Include ~/.homelab-secrets/ssh/config` line so `ssh atlas` works.
