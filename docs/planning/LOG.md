@@ -3,6 +3,8 @@
 One line per shipped change, newest first — the scannable *why*. Git holds the diff
 (`git log --grep=<keyword>`). Older entries describe the repo state at that time and may mention removed setup surfaces.
 
+- 2026-07-04 — added `storage` role: ensures shared, app-agnostic directory roots (`/srv/media{,/movies,/tv,/music}`, `/srv/config`, `/srv/cache`) exist, owned 1000:1000, mode 0755, ahead of k3s in site.yml — apps still self-provision their own subdirectories via hostPath in homelab-cluster
+
 - 2026-07-04 — collapsed flux_bootstrap's SOPS age key check from stat+assert into a single assert (`is file`), matching the pattern already used in flux_auth's deploy-key check
 
 - 2026-07-04 — audited all roles/playbooks for unnecessary tasks and ordering; site.yml role order confirmed correct, no removals needed; documented the intentional duplicate flux-system namespace check in flux_auth/flux_bootstrap (kept for `--tags` standalone runs, not a bug)

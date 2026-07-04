@@ -60,6 +60,7 @@ commands from here. See `docs/architecture.md` for the full picture.
 | security | SSH hardening, fail2ban, auto-upgrades |
 | firewall | ufw rules (reads `inventory/group_vars/homelab/vars.yml`) |
 | cockpit | Web management UI on port 9090 |
+| storage | Shared, app-agnostic host directory roots for K3s apps (media/config/cache) |
 | k3s | K3s platform installation and configuration (wait for node Ready) |
 | flux_auth | Flux CD deploy-key lifecycle: verify key exists, display pubkey for GitHub registration, gate before bootstrap |
 | flux_bootstrap | Flux CD bootstrap: install flux CLI, run flux bootstrap git, optionally seed sops-age Secret |
@@ -69,7 +70,7 @@ commands from here. See `docs/architecture.md` for the full picture.
 | File | Scope |
 |------|-------|
 | `inventory/group_vars/all.yml` | Bootstrap/access vars (`ansible_admin_user`, `ansible_admin_key_path`, `ansible_admin_sudo_group`, `homelab_local_ssh_key_dir`) |
-| `inventory/group_vars/homelab/vars.yml` | Non-secret operational vars: SSH port, apt cache, firewall ports, K3s/Flux versions + bootstrap coordinates |
+| `inventory/group_vars/homelab/vars.yml` | Non-secret operational vars: SSH port, apt cache, firewall ports, storage directory roots, K3s/Flux versions + bootstrap coordinates |
 | `inventory/group_vars/homelab/secrets.sops.yml.example` | Documentation only — describes the future optional encrypted-secrets path |
 
 ## Workstation One-Time Setup

@@ -16,6 +16,17 @@ firewall_allowed_tcp_ports:
   - 443   # HTTPS ingress (Traefik)
 firewall_allowed_udp_ports: []
 
+# --- Storage (role: storage) ---
+# Generic, app-agnostic directory roots shared by all K3s apps (Jellyfin, Sonarr, Radarr, ...).
+# Apps self-provision their own subdirectories via hostPath DirectoryOrCreate in homelab-cluster.
+storage_root_dirs:
+  - /srv/media
+  - /srv/media/movies
+  - /srv/media/tv
+  - /srv/media/music
+  - /srv/config
+  - /srv/cache
+
 # --- K3s platform (role: k3s) ---
 # Version pinned here so it is visible in one place alongside the other env-specific vars.
 k3s_version: "v1.31.4+k3s1"

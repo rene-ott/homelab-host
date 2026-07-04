@@ -1,0 +1,9 @@
+---
+- name: Ensure shared storage root directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ storage_owner }}"
+    group: "{{ storage_group }}"
+    mode: "0755"
+  loop: "{{ storage_root_dirs }}"

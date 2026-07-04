@@ -16,6 +16,9 @@
     - role: cockpit
       tags: [cockpit]
 
+    - role: storage
+      tags: [storage]
+
     - role: k3s
       tags: [k3s]
 
