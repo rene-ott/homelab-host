@@ -96,17 +96,14 @@ ansible-playbook playbooks/teardown-k3s.yml -e teardown_confirm=true
 
 The `samba` role exposes `/srv/media` as a guest-only share (no password). Windows 10/11 block
 "insecure guest logons" by default, so connecting to it fails or prompts for credentials that
-don't exist. Run once on each Windows client, as Administrator (prompts for the server IP, also
-maps `\\atlas.local\media` as a shortcut for the raw IP):
+don't exist. Windows 11 24H2+ also defaults SMB client signing to *required*, which a guest
+session can never satisfy (no key material to sign with) — the client silently aborts the
+connection right after the server grants the guest session, showing "Windows cannot access ...".
+Run once on each Windows client, as Administrator (prompts for the server IP, also maps
+`\\atlas.local\media` as a shortcut for the raw IP):
 
 ```powershell
-$ip = Read-Host "Server IP"; Add-Content -Path "$env:WinDir\System32\drivers\etc\hosts" -Value "`n$ip atlas.local"; reg add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v AllowInsecureGuestAuth /t REG_DWORD /d 1 /f
-```
-
-Then apply it without a reboot:
-
-```powershell
-Restart-Service LanmanWorkstation -Force
+$ip = Read-Host "Server IP"; Add-Content -Path "$env:WinDir\System32\drivers\etc\hosts" -Value "`n$ip atlas.local"; reg add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v AllowInsecureGuestAuth /t REG_DWORD /d 1 /f; Set-SmbClientConfiguration -RequireSecuritySignature $false -Force; Restart-Service LanmanWorkstation -Force
 ```
 
 ## Secrets backup

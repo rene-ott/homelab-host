@@ -8,6 +8,21 @@
     update_cache: true
     cache_valid_time: "{{ apt_cache_valid_time }}"
 
+- name: Resolve force user/group UIDs to names
+  ansible.builtin.getent:
+    database: "{{ item.db }}"
+    key: "{{ item.id }}"
+  loop:
+    - { db: passwd, id: "{{ samba_force_user }}" }
+    - { db: group, id: "{{ samba_force_group }}" }
+  loop_control:
+    label: "{{ item.db }} {{ item.id }}"
+
+- name: Set force user/group name facts
+  ansible.builtin.set_fact:
+    samba_force_user_name: "{{ ansible_facts.getent_passwd.keys() | first }}"
+    samba_force_group_name: "{{ ansible_facts.getent_group.keys() | first }}"
+
 - name: Deploy smb.conf
   ansible.builtin.template:
     src: smb.conf.j2

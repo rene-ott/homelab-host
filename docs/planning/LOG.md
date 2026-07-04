@@ -3,6 +3,8 @@
 One line per shipped change, newest first — the scannable *why*. Git holds the diff
 (`git log --grep=<keyword>`). Older entries describe the repo state at that time and may mention removed setup surfaces.
 
+- 2026-07-04 — extended the README's Windows 11 SMB fix with `Set-SmbClientConfiguration -RequireSecuritySignature $false`: Windows 11 24H2+ defaults SMB client signing to required, which a guest session can never satisfy, so the client was silently aborting the connection right after the server granted guest access ("Windows cannot access ...") even with `AllowInsecureGuestAuth` set — found by packet-capturing the SMB negotiate/session-setup exchange
+
 - 2026-07-04 — documented Windows 11 SMB fix in README: `AllowInsecureGuestAuth` registry command (Windows blocks insecure guest logons by default, needed to reach the guest-only `samba` share) plus an optional combined command that also maps a DNS name to the server IP in the Windows hosts file
 
 - 2026-07-04 — added `samba` role: guest, read-write SMB share on `/srv/media` (force user/group 1000:1000 matching storage's ownership), port 445 opened in firewall, `nmbd` explicitly disabled (SMB2+ direct only) — supersedes the placeholder samba role removed 2026-06-20 for being speculative; this one is a full implementation
