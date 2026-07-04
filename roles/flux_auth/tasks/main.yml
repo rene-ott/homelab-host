@@ -12,6 +12,8 @@
   run_once: true
   become: false
 
+# Duplicated (identically) in flux_bootstrap rather than shared via this role's registered var,
+# so `--tags flux_bootstrap` still works standalone without depending on flux_auth having run.
 - name: Check if flux-system namespace exists
   ansible.builtin.command:
     cmd: k3s kubectl get namespace flux-system

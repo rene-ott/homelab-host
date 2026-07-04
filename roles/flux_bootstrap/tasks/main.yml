@@ -12,6 +12,8 @@
     remote_src: true
     creates: /usr/local/bin/flux
 
+# Duplicated (identically) in flux_auth rather than reusing its registered var, so this role
+# still works when run standalone via `--tags flux_bootstrap` (flux_auth need not have run).
 - name: Check if flux-system namespace exists
   ansible.builtin.command: k3s kubectl get namespace flux-system
   register: flux_bootstrap_ns_check

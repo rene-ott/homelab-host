@@ -3,6 +3,8 @@
 One line per shipped change, newest first — the scannable *why*. Git holds the diff
 (`git log --grep=<keyword>`). Older entries describe the repo state at that time and may mention removed setup surfaces.
 
+- 2026-07-04 — audited all roles/playbooks for unnecessary tasks and ordering; site.yml role order confirmed correct, no removals needed; documented the intentional duplicate flux-system namespace check in flux_auth/flux_bootstrap (kept for `--tags` standalone runs, not a bug)
+
 - 2026-07-03 — renamed inventory host homelab01 → atlas and SSH alias homelab-host → atlas (matches the server's OS hostname and the Flux clusters/atlas path); dropped now-redundant ansible_host override in hosts.yml/bootstrap.yml since the host key matches the SSH alias directly; group `homelab` unchanged
 
 - 2026-07-03 — removed .claude/commands/ (check slash command) and docs/planning/archive/ (historical sprint write-ups); updated CLAUDE.md and LOG.md header to remove stale references
