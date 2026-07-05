@@ -1,7 +1,11 @@
 ---
-samba_share_name: media
-samba_share_path: /srv/media
-samba_share_comment: "Homelab media share (guest, read-write)"
+samba_shares:
+  - name: media
+    path: /srv/media
+    comment: "Homelab media share (guest, read-write)"
+  - name: misc
+    path: /srv/misc
+    comment: "Homelab misc share (guest, read-write)"
 
 samba_workgroup: WORKGROUP
 samba_server_string: "%h media server"

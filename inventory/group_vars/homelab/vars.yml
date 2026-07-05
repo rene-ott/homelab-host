@@ -14,7 +14,7 @@ firewall_allowed_tcp_ports:
   - 6443  # K3s API
   - 80    # HTTP ingress (Traefik)
   - 443   # HTTPS ingress (Traefik)
-  - 445   # Samba/SMB (media share, guest read-write)
+  - 445   # Samba/SMB (media + misc shares, guest read-write)
 firewall_allowed_udp_ports: []
 
 # --- Storage (role: storage) ---
@@ -27,6 +27,7 @@ storage_root_dirs:
   - /srv/media/music
   - /srv/config
   - /srv/cache
+  - /srv/misc
 
 # --- K3s platform (role: k3s) ---
 # Version pinned here so it is visible in one place alongside the other env-specific vars.

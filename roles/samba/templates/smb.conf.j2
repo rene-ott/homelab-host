@@ -20,9 +20,10 @@
    max log size = 1000
    dns proxy = no
 
-[{{ samba_share_name }}]
-   comment = {{ samba_share_comment }}
-   path = {{ samba_share_path }}
+{% for share in samba_shares %}
+[{{ share.name }}]
+   comment = {{ share.comment }}
+   path = {{ share.path }}
    browseable = yes
    guest ok = yes
    guest only = yes
@@ -32,3 +33,5 @@
    force group = {{ samba_force_group_name }}
    create mask = {{ samba_create_mask }}
    directory mask = {{ samba_directory_mask }}
+
+{% endfor %}

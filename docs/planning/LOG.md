@@ -3,6 +3,8 @@
 One line per shipped change, newest first — the scannable *why*. Git holds the diff
 (`git log --grep=<keyword>`). Older entries describe the repo state at that time and may mention removed setup surfaces.
 
+- 2026-07-05 — added a second Samba share, `[misc]` on `/srv/misc`, for general-purpose files alongside `[media]`: refactored `samba` role from single hard-coded share vars to a `samba_shares` list looped over in `smb.conf.j2`, same force user/group and permission model for both shares; `/srv/misc` added to `storage_root_dirs`
+
 - 2026-07-04 — added `scripts/backup-config.sh`: manual backup/restore of `/srv/config` between server and workstation, streamed over ssh+tar with no remote temp file (no encryption/retention yet), mirroring `backup-secrets.sh`'s interactive backup/restore menu; also moved `backup-secrets.sh`'s destination into `~/.homelab-backups/secrets/` (was flat) so both scripts land in parallel `secrets/`/`config/` subfolders
 
 - 2026-07-04 — extended the README's Windows 11 SMB fix with `Set-SmbClientConfiguration -RequireSecuritySignature $false`: Windows 11 24H2+ defaults SMB client signing to required, which a guest session can never satisfy, so the client was silently aborting the connection right after the server granted guest access ("Windows cannot access ...") even with `AllowInsecureGuestAuth` set — found by packet-capturing the SMB negotiate/session-setup exchange
