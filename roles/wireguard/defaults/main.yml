@@ -1,4 +1,8 @@
 ---
+# Per-host toggle — set to false in a host's inventory/host_vars/<hostname>.yml to skip this
+# role entirely (see playbooks/site.yml).
+wireguard_enabled: true
+
 wireguard_interface: wg0
 wireguard_config_path: "/etc/wireguard/{{ wireguard_interface }}.conf"
 wireguard_private_key_path: "/etc/wireguard/{{ wireguard_interface }}.key"

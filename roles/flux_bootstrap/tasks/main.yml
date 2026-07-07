@@ -1,4 +1,14 @@
 ---
+# Guard: catches an inconsistent host_vars combination when this role is run in isolation via
+# --tags flux_bootstrap (playbooks/site.yml's own pre_tasks assert only covers a full-playbook
+# run).
+- name: Assert k3s is enabled when flux_bootstrap is enabled
+  ansible.builtin.assert:
+    that: k3s_enabled | default(true) | bool
+    fail_msg: >-
+      flux_bootstrap requires K3s — set k3s_enabled: true or disable flux_auth_enabled/
+      flux_bootstrap_enabled too.
+
 - name: Download flux CLI archive
   ansible.builtin.get_url:
     url: "https://github.com/fluxcd/flux2/releases/download/v{{ flux_bootstrap_version }}/flux_{{ flux_bootstrap_version }}_linux_amd64.tar.gz"

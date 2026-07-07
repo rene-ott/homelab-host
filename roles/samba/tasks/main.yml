@@ -1,4 +1,12 @@
 ---
+# Guard: catches an inconsistent host_vars combination when this role is run in isolation via
+# --tags samba (playbooks/site.yml's own pre_tasks assert only covers a full-playbook run).
+- name: Assert storage is enabled when samba is enabled
+  ansible.builtin.assert:
+    that: storage_enabled | default(true) | bool
+    fail_msg: >-
+      samba requires storage — set storage_enabled: true or disable samba_enabled too.
+
 - name: Install samba
   ansible.builtin.apt:
     name:

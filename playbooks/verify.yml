@@ -6,8 +6,10 @@
 #   ansible-playbook playbooks/verify.yml --tags flux_bootstrap  # Flux checks only
 # Each role owns its checks in roles/<role>/tasks/verify.yml.
 #
-# import_role (static) is used so --list-tasks expands the inner checks and tags on
-# the import propagate to every imported task (so --tags cockpit / --tags k3s select).
+# import_role (static) is used so --list-tasks expands the inner checks and tags on the
+# import propagate to every imported task (so --tags cockpit / --tags k3s select). Each check
+# is gated by the same <role>_enabled toggle used in site.yml (default true; see each role's
+# defaults/main.yml) — a disabled role is skipped here too.
 - name: Verify homelab services are healthy
   hosts: homelab
   become: true
@@ -18,27 +20,32 @@
         name: wireguard
         tasks_from: verify
       tags: [verify, wireguard]
+      when: wireguard_enabled | default(true) | bool
 
     - name: Verify cockpit
       ansible.builtin.import_role:
         name: cockpit
         tasks_from: verify
       tags: [verify, cockpit]
+      when: cockpit_enabled | default(true) | bool
 
     - name: Verify samba
       ansible.builtin.import_role:
         name: samba
         tasks_from: verify
       tags: [verify, samba]
+      when: samba_enabled | default(true) | bool
 
     - name: Verify k3s
       ansible.builtin.import_role:
         name: k3s
         tasks_from: verify
       tags: [verify, k3s]
+      when: k3s_enabled | default(true) | bool
 
     - name: Verify flux_bootstrap
       ansible.builtin.import_role:
         name: flux_bootstrap
         tasks_from: verify
       tags: [verify, flux_bootstrap]
+      when: flux_bootstrap_enabled | default(true) | bool

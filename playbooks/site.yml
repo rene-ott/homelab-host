@@ -1,10 +1,29 @@
 ---
 # Main playbook — applies all roles in dependency order.
 # Run a single role: ansible-playbook playbooks/site.yml --tags <role>
+#
+# Every role except security/firewall is individually toggleable per host via <role>_enabled
+# (default true; see each role's defaults/main.yml). Set <role>_enabled: false in a host's
+# inventory/host_vars/<hostname>.yml to skip that role entirely — the when: below applies to
+# every task the role owns, including any assert/fail-fast guards inside it. security/firewall
+# have no toggle and always run. The pre_tasks block below validates toggle combinations
+# (Flux requires K3s, Samba requires Storage) before any role runs.
 
 - name: Configure homelab servers
   hosts: homelab
   become: true
+
+  pre_tasks:
+    - name: Validate role toggle dependencies
+      ansible.builtin.assert:
+        that:
+          - not (flux_auth_enabled | default(true) | bool) or (k3s_enabled | default(true) | bool)
+          - not (flux_bootstrap_enabled | default(true) | bool) or (k3s_enabled | default(true) | bool)
+          - not (samba_enabled | default(true) | bool) or (storage_enabled | default(true) | bool)
+        fail_msg: >-
+          Invalid role toggle combination: Flux requires K3s, and Samba requires Storage.
+          Check this host's host_vars for an inconsistent *_enabled combination.
+        success_msg: Role toggle dependencies are valid.
 
   roles:
     - role: security
@@ -15,21 +34,28 @@
 
     - role: wireguard
       tags: [wireguard]
+      when: wireguard_enabled | default(true) | bool
 
     - role: cockpit
       tags: [cockpit]
+      when: cockpit_enabled | default(true) | bool
 
     - role: storage
       tags: [storage]
+      when: storage_enabled | default(true) | bool
 
     - role: samba
       tags: [samba]
+      when: samba_enabled | default(true) | bool
 
     - role: k3s
       tags: [k3s]
+      when: k3s_enabled | default(true) | bool
 
     - role: flux_auth
       tags: [flux_auth]
+      when: flux_auth_enabled | default(true) | bool
 
     - role: flux_bootstrap
       tags: [flux_bootstrap]
+      when: flux_bootstrap_enabled | default(true) | bool

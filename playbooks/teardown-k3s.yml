@@ -18,6 +18,13 @@
           its data, and its certs. Re-run with: -e teardown_confirm=true
       when: not (teardown_confirm | default(false) | bool)
 
+    - name: Refuse to tear down K3s on a host where it isn't enabled
+      ansible.builtin.fail:
+        msg: >-
+          k3s_enabled is false for this host — K3s was never installed here, so
+          there's nothing to tear down.
+      when: not (k3s_enabled | default(true) | bool)
+
     - name: Tear down K3s
       ansible.builtin.import_role:
         name: k3s

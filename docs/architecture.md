@@ -35,6 +35,15 @@ must be ready before encrypted cluster secrets or cert-manager DNS-01 are expect
 
 ## Playbook Execution Order
 
+Every role except `security`/`firewall` is individually toggleable per host via a `<role>_enabled`
+boolean (default `true`, defined in each role's own `defaults/main.yml`) — set `<role>_enabled: false`
+in a host's `inventory/host_vars/<hostname>.yml` to skip that role there. This is groundwork for
+supporting more than one server profile in the same inventory (e.g. a minimal, base-OS-only host
+alongside `atlas`'s full stack) — see `CLAUDE.md` rule #11 for the toggle mechanics, and
+`docs/planning/TASKS.md` for the current state of multi-host support. `flux_auth`/`flux_bootstrap`
+require `k3s_enabled: true`, and `samba` requires `storage_enabled: true`; both `site.yml`'s
+`pre_tasks` and each role's own guard task fail fast on an inconsistent combination.
+
 `playbooks/site.yml` applies roles in this order, ensuring dependencies are met:
 
 1. `security` — SSH hardened before firewall locks down

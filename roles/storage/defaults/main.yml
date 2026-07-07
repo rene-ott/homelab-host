@@ -1,4 +1,10 @@
 ---
+# Per-host toggle — set to false in a host's inventory/host_vars/<hostname>.yml to skip this
+# role entirely (see playbooks/site.yml). Note: the samba role depends on storage — disabling
+# storage while samba is enabled fails the dependency guards in both playbooks/site.yml and
+# roles/samba/tasks/main.yml.
+storage_enabled: true
+
 storage_owner: 1000
 storage_group: 1000
 storage_root_dirs: []

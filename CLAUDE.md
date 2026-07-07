@@ -51,21 +51,22 @@ commands from here. See `docs/architecture.md` for the full picture.
 8. **The `ansible` automation user is provisioned by `bootstrap_user`.** It creates the user (sudo group, `/bin/bash`) and authorizes the workstation-generated public key. It must never be given a usable password or deleted.
 9. **Private SSH keys must stay on the workstation.** Deploy only public keys, via `ansible.posix.authorized_key` — never raw `copy` for `authorized_keys`. (`scripts/init-workstation.sh` generates the `ansible` keypair on the workstation; only its public half reaches the server.) **Carve-out — the Flux deploy key:** the `flux_bootstrap` role is the one exception, since a deploy key's private half *must* reach the server (it lives in the in-cluster `flux-system` Secret for Flux to pull). The role stages it into a `0600` temp file (`copy` + `no_log: true`) for the bootstrap only, then deletes it in an `always` block. Applies *only* to the Flux deploy key — `authorized_keys` still follows the rule above.
 10. **Passwordless sudo for the `ansible` user is configured by `bootstrap_user`.** Via `/etc/sudoers.d/ansible` with `ansible ALL=(ALL) NOPASSWD:ALL` (owner root, group root, mode 0440, validated with `visudo -cf %s`). The bootstrap run needs `--ask-pass --ask-become-pass`; once `ansible` exists with NOPASSWD sudo and its key, all later runs need neither.
+11. **Every role except `security`/`firewall` is individually toggleable per host.** Each has a `<role>_enabled` boolean in its own `defaults/main.yml`, defaulting to `true` — set `<role>_enabled: false` in a host's `inventory/host_vars/<hostname>.yml` to skip that role entirely on that host. `playbooks/site.yml`/`verify.yml` gate each role with `when: <role>_enabled | default(true) | bool`; because that `when:` applies to *every* task the role contributes (Ansible's documented behavior for the `roles:` keyword and static `import_role`), it also skips a disabled role's own fail-fast asserts (e.g. `flux_auth`'s/`flux_bootstrap`'s workstation-key checks from rule #5) — the assert and the functional tasks are never split. `security`/`firewall` have no toggle and always run; there's no scenario where a homelab host should skip OS hardening or the firewall. `bootstrap_user` isn't part of this scheme either — it only runs via the separate `bootstrap-user.yml` flow (rule #7), not `site.yml`. `flux_auth`/`flux_bootstrap` require `k3s_enabled: true`, and `samba` requires `storage_enabled: true` — both `site.yml`'s `pre_tasks` and each role's own guard task fail fast on an inconsistent combination. This is architecturally distinct from the removed `flux_bootstrap_enable_sops` flag (rule #5's "unconditional" fail-fast is about a flag that gated one sub-task *inside* an always-running role while its assert stayed live — the opposite of gating the whole role from outside).
 
 ## Role Map
 
-| Role | Concern |
-|------|---------|
-| bootstrap_user | (bootstrap only) creates `ansible` OS user, installs public key, grants passwordless sudo |
-| security | SSH hardening, fail2ban, auto-upgrades |
-| firewall | ufw rules (reads `inventory/group_vars/homelab/vars.yml`) |
-| wireguard | Split-tunnel WireGuard VPN — UDP 51820, overlay 10.10.10.0/24, peers in `vars.yml` |
-| cockpit | Web management UI on port 9090 |
-| storage | Shared, app-agnostic host directory roots for K3s apps (media/config/cache) |
-| samba | Guest, read-write SMB share exposing `/srv/media` over the network (port 445) |
-| k3s | K3s platform installation and configuration (wait for node Ready) |
-| flux_auth | Flux CD deploy-key lifecycle: verify key exists, display pubkey for GitHub registration, gate before bootstrap |
-| flux_bootstrap | Flux CD bootstrap: install flux CLI, run flux bootstrap git, optionally seed sops-age Secret |
+| Role | Concern | Toggle |
+|------|---------|--------|
+| bootstrap_user | (bootstrap only) creates `ansible` OS user, installs public key, grants passwordless sudo | always on, not part of `site.yml` |
+| security | SSH hardening, fail2ban, auto-upgrades | always on |
+| firewall | ufw rules (reads `inventory/group_vars/homelab/vars.yml`) | always on |
+| wireguard | Split-tunnel WireGuard VPN — UDP 51820, overlay 10.10.10.0/24, peers in `vars.yml` | `wireguard_enabled` |
+| cockpit | Web management UI on port 9090 | `cockpit_enabled` |
+| storage | Shared, app-agnostic host directory roots for K3s apps (media/config/cache) | `storage_enabled` |
+| samba | Guest, read-write SMB share exposing `/srv/media` over the network (port 445) | `samba_enabled` (requires `storage_enabled`) |
+| k3s | K3s platform installation and configuration (wait for node Ready) | `k3s_enabled` |
+| flux_auth | Flux CD deploy-key lifecycle: verify key exists, display pubkey for GitHub registration, gate before bootstrap | `flux_auth_enabled` (requires `k3s_enabled`) |
+| flux_bootstrap | Flux CD bootstrap: install flux CLI, run flux bootstrap git, optionally seed sops-age Secret | `flux_bootstrap_enabled` (requires `k3s_enabled`) |
 
 ## Variable Files
 

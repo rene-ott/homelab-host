@@ -1,0 +1,4 @@
+---
+# Per-host toggle — set to false in a host's inventory/host_vars/<hostname>.yml to skip this
+# role entirely (see playbooks/site.yml).
+cockpit_enabled: true
