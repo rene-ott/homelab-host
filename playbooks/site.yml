@@ -13,6 +13,9 @@
     - role: firewall
       tags: [firewall]
 
+    - role: wireguard
+      tags: [wireguard]
+
     - role: cockpit
       tags: [cockpit]
 

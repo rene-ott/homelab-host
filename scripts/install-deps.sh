@@ -21,7 +21,7 @@ printf 'Installing dependencies:\n'
 
 # ── apt packages ──────────────────────────────────────────────────────────────
 declare -A _apt_status
-pkgs=(ansible ansible-lint openssh-client age curl)
+pkgs=(ansible ansible-lint openssh-client age curl wireguard-tools qrencode)
 missing=()
 
 for pkg in "${pkgs[@]}"; do
@@ -44,6 +44,8 @@ declare -A _ver_cmd=(
   [age]="age --version"
   [curl]="curl --version"
   [openssh-client]="ssh -V"
+  [wireguard-tools]="wg --version"
+  [qrencode]="qrencode --version"
 )
 declare -A _bin=(
   [ansible]="ansible"
@@ -51,6 +53,8 @@ declare -A _bin=(
   [age]="age"
   [curl]="curl"
   [openssh-client]="ssh"
+  [wireguard-tools]="wg"
+  [qrencode]="qrencode"
 )
 for pkg in "${pkgs[@]}"; do
   row "$pkg" "${_apt_status[$pkg]}" "$(ver_of "${_ver_cmd[$pkg]}")" "apt" "$(loc_of "${_bin[$pkg]}")"

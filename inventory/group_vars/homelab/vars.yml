@@ -15,7 +15,26 @@ firewall_allowed_tcp_ports:
   - 80    # HTTP ingress (Traefik)
   - 443   # HTTPS ingress (Traefik)
   - 445   # Samba/SMB (media + misc shares, guest read-write)
-firewall_allowed_udp_ports: []
+firewall_allowed_udp_ports:
+  - "{{ wireguard_listen_port }}"  # WireGuard remote-access VPN
+
+# --- WireGuard remote-access VPN (role: wireguard) ---
+wireguard_listen_port: 51820
+wireguard_address: "10.10.10.1/24"   # server overlay address; subnet 10.10.10.0/24
+                                       # (deliberately outside typical home-LAN 192.168.x.x ranges)
+
+# Peer public keys are not secret but are placeholders until generated. Run
+# ./scripts/wireguard-client.sh on the workstation for each device, then paste the printed
+# public key below (private keys never leave ~/.homelab-secrets/wireguard/ on the workstation).
+# A peer with public_key: "" is skipped by the role (with a warning) until filled in.
+wireguard_peers:
+  - name: workstation      # Windows 11 host, native WireGuard app (also covers WSL2 traffic —
+                            # WSL2 NATs through the Windows host network stack)
+    public_key: "Zpr3cag0BRjqdhQpXt4vDtS3pXdfCdqVkNCMP3CANFg="
+    allowed_ips: "10.10.10.2/32"
+  - name: phone            # GrapheneOS, official WireGuard Android app (QR import)
+    public_key: "2RVszTqznYwKs1poCf5yLw4W3m/fz4EbuZylAF19YzE="
+    allowed_ips: "10.10.10.3/32"
 
 # --- Storage (role: storage) ---
 # Generic, app-agnostic directory roots shared by all K3s apps (Jellyfin, Sonarr, Radarr, ...).

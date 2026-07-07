@@ -1,0 +1,27 @@
+---
+# Read-only health checks for wireguard. Run via playbooks/verify.yml (--tags wireguard).
+- name: Verify wg-quick@wg0 is active and enabled
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+  register: wireguard_service
+  changed_when: false
+  failed_when: >
+    wireguard_service.status.ActiveState != 'active'
+    or wireguard_service.status.UnitFileState != 'enabled'
+
+- name: Verify wg0 interface is up
+  ansible.builtin.command: wg show {{ wireguard_interface }}
+  register: wireguard_show
+  changed_when: false
+  failed_when: wireguard_show.rc != 0
+
+- name: Verify every configured peer with a key is present in the running config
+  ansible.builtin.assert:
+    that: item.public_key in wireguard_show.stdout
+    fail_msg: >-
+      Peer '{{ item.name }}' not found in running wg0 config — re-run:
+      ansible-playbook playbooks/site.yml --tags wireguard
+  loop: "{{ wireguard_peers }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.public_key | length > 0

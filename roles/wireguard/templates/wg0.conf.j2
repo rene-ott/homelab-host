@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Declarative — do not hand-edit. SaveConfig is intentionally unset, so `wg-quick down`
+# never rewrites this file. Re-run `ansible-playbook playbooks/site.yml --tags wireguard`
+# to apply changes.
+
+[Interface]
+Address = {{ wireguard_address }}
+ListenPort = {{ wireguard_listen_port }}
+PrivateKey = {{ wireguard_server_private_key }}
+
+{% for peer in wireguard_peers if peer.public_key %}
+# {{ peer.name }}
+[Peer]
+PublicKey = {{ peer.public_key }}
+AllowedIPs = {{ peer.allowed_ips }}
+
+{% endfor %}

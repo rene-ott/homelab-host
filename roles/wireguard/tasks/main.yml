@@ -1,0 +1,110 @@
+---
+- name: Install wireguard-tools
+  ansible.builtin.apt:
+    name: wireguard-tools
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ apt_cache_valid_time }}"
+
+- name: Ensure /etc/wireguard exists with restrictive permissions
+  ansible.builtin.file:
+    path: /etc/wireguard
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Check whether a server private key already exists
+  ansible.builtin.stat:
+    path: "{{ wireguard_private_key_path }}"
+  register: wireguard_privkey_stat
+
+- name: Generate server private key
+  ansible.builtin.command: wg genkey
+  register: wireguard_genkey
+  changed_when: true
+  no_log: true
+  when: not wireguard_privkey_stat.stat.exists
+
+- name: Persist server private key
+  ansible.builtin.copy:
+    content: "{{ wireguard_genkey.stdout }}\n"
+    dest: "{{ wireguard_private_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when: not wireguard_privkey_stat.stat.exists
+
+- name: Read server private key
+  ansible.builtin.slurp:
+    src: "{{ wireguard_private_key_path }}"
+  register: wireguard_privkey_slurp
+  no_log: true
+
+- name: Set server private key fact
+  ansible.builtin.set_fact:
+    wireguard_server_private_key: "{{ wireguard_privkey_slurp.content | b64decode | trim }}"
+  no_log: true
+
+- name: Derive server public key
+  ansible.builtin.command: wg pubkey
+  args:
+    stdin: "{{ wireguard_server_private_key }}"
+  register: wireguard_pubkey_result
+  changed_when: false
+  no_log: true
+
+- name: Persist server public key (convenience copy, not secret)
+  ansible.builtin.copy:
+    content: "{{ wireguard_pubkey_result.stdout }}\n"
+    dest: "{{ wireguard_public_key_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Warn about peers with no public key yet
+  ansible.builtin.debug:
+    msg: >-
+      Peer '{{ item.name }}' has no public_key set — omitted from wg0.conf until you run
+      ./scripts/wireguard-client.sh and paste its public key into wireguard_peers in
+      inventory/group_vars/homelab/vars.yml.
+  loop: "{{ wireguard_peers }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: not item.public_key
+
+- name: Deploy wg0.conf
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: "{{ wireguard_config_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart WireGuard
+
+- name: Enable and start WireGuard interface
+  ansible.builtin.service:
+    name: "wg-quick@{{ wireguard_interface }}"
+    state: started
+    enabled: true
+
+- name: Display WireGuard server public key
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      WireGuard server public key (paste into every client's [Peer] PublicKey):
+
+      {{ wireguard_pubkey_result.stdout }}
+
+      Endpoint = <your static IP or DDNS hostname>:{{ wireguard_listen_port }}
+      (never committed to this repo)
+
+      Generate/print client keys+configs:
+        ./scripts/wireguard-client.sh
+      Then paste each printed public key into wireguard_peers in
+      inventory/group_vars/homelab/vars.yml and re-run:
+        ansible-playbook playbooks/site.yml --tags wireguard
+      ============================================================
+  run_once: true

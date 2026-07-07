@@ -6,7 +6,12 @@ line to `LOG.md` → clear Now. No status fields, no per-task files. History is 
 
 ## Now
 
-_(nothing in flight)_
+- **WireGuard remote-access VPN** — `wireguard` role (server keypair, `wg0.conf` from
+  `wireguard_peers`), UDP 51820 in firewall, split-tunnel `10.10.10.0/24`.
+  - [x] `roles/wireguard` + firewall/site.yml/verify.yml wiring
+  - [x] `scripts/wireguard-client.sh` (workstation + phone keys/config, QR via qrencode)
+  - [ ] Bootstrap (empty keys) → server pubkey → client script → fill `wireguard_peers` → re-run
+  - [x] docs/architecture.md + CLAUDE.md updated; LOG.md entry once shipped; router port-forward is a manual step
 
 ## Next
 

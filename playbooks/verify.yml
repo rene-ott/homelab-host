@@ -13,6 +13,12 @@
   become: true
 
   tasks:
+    - name: Verify wireguard
+      ansible.builtin.import_role:
+        name: wireguard
+        tasks_from: verify
+      tags: [verify, wireguard]
+
     - name: Verify cockpit
       ansible.builtin.import_role:
         name: cockpit

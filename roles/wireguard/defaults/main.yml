@@ -1,0 +1,9 @@
+---
+wireguard_interface: wg0
+wireguard_config_path: "/etc/wireguard/{{ wireguard_interface }}.conf"
+wireguard_private_key_path: "/etc/wireguard/{{ wireguard_interface }}.key"
+wireguard_public_key_path: "/etc/wireguard/{{ wireguard_interface }}.pub"
+
+# Real, environment-specific values (listen port, overlay address, peers) live in
+# inventory/group_vars/homelab/vars.yml.
+wireguard_peers: []
