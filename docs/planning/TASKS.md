@@ -52,6 +52,17 @@ line to `LOG.md` → clear Now. No status fields, no per-task files. History is 
   clarify behavior when targeting a base-only host (every tagged role no-ops safely via its
   `_enabled` toggle, but the menu labels currently assume the full stack), and consider splitting
   the script's concerns (e.g. separate `site.sh`/`cluster.sh`/`verify.sh` intents).
+- **Wire `scripts/lib/paths.sh` into the scripts** — `scripts/lib/paths.sh` (added 2026-07-08)
+  defines the target `~/.homelab/` path variables but nothing sources it yet. Migrate
+  `init-workstation.sh`, `backup-secrets.sh`, `backup-config.sh`, `backup-wireguard.sh`,
+  `wireguard-client.sh`, and `clear-workstation.sh` off their inline `~/.homelab-secrets` /
+  `~/.homelab-backups` paths onto it (per TODO.md's "Known blast radius"), including the
+  `SECRET_FILES`/`SRCS`/`DSTS` staging-layout rework in `backup-secrets.sh`. Also touches
+  `inventory/group_vars/all.yml` (`homelab_local_ssh_key_dir`), `inventory/group_vars/homelab/vars.yml`
+  (`flux_auth_bootstrap_ssh_key_file`, `flux_bootstrap_sops_age_key_file`), `inventory/hosts.yml`/
+  `host_vars/atlas.yml`, and docs (`CLAUDE.md`, `docs/architecture.md`, `README.md`). Resolve
+  TODO.md's two open questions (per-host vs. shared Flux material; `bootstrap_user` key filename)
+  before starting.
 - **Review workstation Flux-key generation** — now that Flux is optional per host,
   `init-workstation.sh`'s flux-deploy-key/SOPS-age-key steps are worth revisiting on their own
   terms (e.g. should they become skippable if no host will ever run Flux-enabled?). Separate from
