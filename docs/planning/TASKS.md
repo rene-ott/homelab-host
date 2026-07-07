@@ -15,8 +15,10 @@ line to `LOG.md` → clear Now. No status fields, no per-task files. History is 
     requires Storage)
   - [x] Role-local dependency guards in `flux_auth`/`flux_bootstrap`/`samba` for tag-scoped runs
   - [x] `teardown-k3s.yml` refuses teardown when `k3s_enabled` is false
-  - [ ] Docs (`CLAUDE.md`, `architecture.md`) updated; full verification suite against `atlas`;
-    LOG.md entry once shipped
+  - [x] Docs (`CLAUDE.md`, `architecture.md`) updated
+  - Full verification against `atlas` and the `LOG.md` entry are deferred — `atlas` was
+    unreachable from the workstation session that closed this out (2026-07-07, no route to
+    host). Moved to Someday below; only start that once explicitly told to.
   - Actually onboarding a real second host is deliberately out of scope for this pass — see
     Someday below.
 
@@ -28,6 +30,13 @@ line to `LOG.md` → clear Now. No status fields, no per-task files. History is 
 
 ## Someday
 
+- **Verify the per-role toggle branch end-to-end against `atlas`** — run `ansible-playbook
+  playbooks/site.yml --check --diff` then the full `playbooks/verify.yml` (no `--tags`, i.e.
+  every role) against the real server once it's reachable, to confirm the toggle/gating work on
+  `feature/implement-multi-host-support` behaves correctly with every role still at its default
+  (`true`). Only start this when explicitly told to — `atlas` was unreachable from the
+  workstation as of 2026-07-07. Once green, check the remaining `Now` box and add the `LOG.md`
+  entry.
 - **Onboard a real second host** once one exists — no hostname/machine to provision yet. Add it
   to `inventory/hosts.yml`/`inventory/bootstrap.yml`, write its `inventory/host_vars/<hostname>.yml`
   with the relevant `*_enabled: false` overrides and a trimmed firewall port list, hand-edit its
