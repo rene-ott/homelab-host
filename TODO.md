@@ -1,6 +1,8 @@
 # TODO — workstation secrets/config reorganization
 
-Not yet planned or implemented — discussion output only, captured for later.
+Not yet planned or implemented — discussion output only, captured for later. This doc is the
+rationale; `scripts/lib/paths.sh` is the canonical, executable source of truth for the target
+`~/.homelab/` layout — if the two ever disagree, `paths.sh` wins and this doc is stale.
 
 ## Why
 
@@ -14,7 +16,7 @@ per-host, and fleet-wide only where it genuinely is.
 ```
 ~/.homelab/
 ├── local/
-│   ├── config                       # SSH Host aliases for the whole fleet — one file, many Host blocks
+│   ├── ssh_config.partial            # SSH Host aliases for the whole fleet — Include'd into ~/.ssh/config
 │   └── atlas/
 │       ├── bootstrap_user/
 │       │   └── id_ed25519 (+.pub)    # this host's own Ansible login key — rotate independently per host
@@ -27,10 +29,11 @@ per-host, and fleet-wide only where it genuinely is.
 │               ├── workstation.key (+.pub/.conf)
 │               └── phone.key (+.pub/.conf)
 └── backups/
-    ├── workstation/                  # snapshots of local/ — restores this machine if wiped
-    └── atlas/                       # snapshots of atlas's own server-side state
-        ├── config/
-        └── wireguard/
+    ├── local/                        # snapshots of local/ — restores this machine if wiped
+    └── server/
+        └── atlas/                    # snapshots of atlas's own server-side state
+            ├── config/
+            └── wireguard/
 ```
 
 ## Key decisions made in discussion
@@ -38,8 +41,8 @@ per-host, and fleet-wide only where it genuinely is.
 - **`~/.homelab/{local,backups}`**, not `~/.homelab-secrets`/`~/.homelab-backups` — one neutral
   root, two siblings. Mirrors the project's existing `homelab-host`/`homelab-cluster` naming (a
   third "homelab" namespace for workstation-local state).
-- **`local/` vs `backups/` is an origin split, not just live-vs-archive**: `backups/workstation/`
-  snapshots material that already lives in `local/` (restores *this machine*); `backups/atlas/`
+- **`local/` vs `backups/` is an origin split, not just live-vs-archive**: `backups/local/`
+  snapshots material that already lives in `local/` (restores *this machine*); `backups/server/atlas/`
   snapshots data that normally lives on the server (`/srv/config`, `/etc/wireguard/wg0.key`) —
   pulled down and archived locally, restores *the server*.
 - **Everything under `local/atlas/` is per-host**, named after the Ansible role that
@@ -53,7 +56,7 @@ per-host, and fleet-wide only where it genuinely is.
   rotation/revocation per host if one is ever decommissioned or reinstalled.
 - **`wireguard/devices/` holds every peer keypair uniformly**, workstation included — from the
   server's perspective the workstation is just another peer, no structurally special case.
-- **`local/config` (the SSH alias file) stays a single fleet-wide file**, not per-host — it's not
+- **`local/ssh_config.partial` (the SSH alias file) stays a single fleet-wide file**, not per-host — it's not
   a secret and isn't independently rotated, and splitting it into per-host fragments would trade
   one file for N `Include` lines with no real benefit. Each `Host` block's `IdentityFile` just
   points at that host's own per-host key.
@@ -65,21 +68,24 @@ per-host, and fleet-wide only where it genuinely is.
 | `ssh/ansible` (+`.pub`) | `local/atlas/bootstrap_user/id_ed25519` (+`.pub`) |
 | `ssh/flux-deploy` (+`.pub`) | `local/atlas/flux_auth/deploy_key` (+`.pub`) |
 | `age/homelab.agekey` | `local/atlas/flux_bootstrap/sops-age.key` |
-| `ssh/config` | `local/config` |
+| `ssh/config` | `local/ssh_config.partial` |
 | `wireguard/workstation.key` (+`.pub`/`.conf`) | `local/atlas/wireguard/devices/workstation.key` (+`.pub`/`.conf`) |
 | `wireguard/phone.key` (+`.pub`/`.conf`) | `local/atlas/wireguard/devices/phone.key` (+`.pub`/`.conf`) |
-| `~/.homelab-backups/secrets/` | `~/.homelab/backups/workstation/` |
-| `~/.homelab-backups/config/` | `~/.homelab/backups/atlas/config/` |
-| `~/.homelab-backups/wireguard/` | `~/.homelab/backups/atlas/wireguard/` |
+| `~/.homelab-backups/secrets/` | `~/.homelab/backups/local/` |
+| `~/.homelab-backups/config/` | `~/.homelab/backups/server/atlas/config/` |
+| `~/.homelab-backups/wireguard/` | `~/.homelab/backups/server/atlas/wireguard/` |
 
-## Open questions (not yet resolved)
+## Decisions confirmed by scripts/lib/paths.sh
 
-- Is Flux material (`flux_auth`/`flux_bootstrap`) meant to be regenerated per host, or could a
-  future second Flux-enabled host share the same deploy key / age key? Current lean: per-host
-  isolation, regenerate as needed — but not confirmed.
-- `bootstrap_user`'s key file was named `id_ed25519` to avoid the `ansible/ansible` stutter from
-  an earlier draft — that's now moot since the folder is `bootstrap_user/`, so a more semantic
-  name (e.g. `ansible_key`) is back on the table.
+Both were open questions in earlier discussion; `scripts/lib/paths.sh` has since committed to an
+answer for each, so they're settled unless someone deliberately revisits them:
+
+- **Flux material (`flux_auth`/`flux_bootstrap`) is per-host, not shared** — `paths.sh` nests
+  `HOMELAB_FLUX_AUTH_DIR`/`HOMELAB_FLUX_BOOTSTRAP_DIR` under `HOMELAB_HOST_LOCAL_DIR` (i.e. under
+  `atlas/`), confirming the "per-host isolation, regenerate as needed" lean.
+- **`bootstrap_user`'s key file stays named `id_ed25519`** — `paths.sh` defines
+  `HOMELAB_BOOTSTRAP_USER_KEY` as `bootstrap_user/id_ed25519`; the `ansible_key` alternative was
+  considered and dropped.
 
 ## Known blast radius (not yet scoped in detail)
 

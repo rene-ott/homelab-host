@@ -60,9 +60,9 @@ line to `LOG.md` → clear Now. No status fields, no per-task files. History is 
   `SECRET_FILES`/`SRCS`/`DSTS` staging-layout rework in `backup-secrets.sh`. Also touches
   `inventory/group_vars/all.yml` (`homelab_local_ssh_key_dir`), `inventory/group_vars/homelab/vars.yml`
   (`flux_auth_bootstrap_ssh_key_file`, `flux_bootstrap_sops_age_key_file`), `inventory/hosts.yml`/
-  `host_vars/atlas.yml`, and docs (`CLAUDE.md`, `docs/architecture.md`, `README.md`). Resolve
-  TODO.md's two open questions (per-host vs. shared Flux material; `bootstrap_user` key filename)
-  before starting.
+  `host_vars/atlas.yml`, and docs (`CLAUDE.md`, `docs/architecture.md`, `README.md`). TODO.md's
+  two open questions (per-host vs. shared Flux material; `bootstrap_user` key filename) are now
+  resolved — see TODO.md's "Decisions confirmed by scripts/lib/paths.sh".
 - **Review workstation Flux-key generation** — now that Flux is optional per host,
   `init-workstation.sh`'s flux-deploy-key/SOPS-age-key steps are worth revisiting on their own
   terms (e.g. should they become skippable if no host will ever run Flux-enabled?). Separate from

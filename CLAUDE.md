@@ -109,6 +109,12 @@ no manual `age-keygen` or `ssh-keygen` needed. Keys live under a single local di
 
 `~/.ssh/config` gets one `Include ~/.homelab-secrets/ssh/config` line so `ssh atlas` works.
 
+> **Target layout in flight:** the tree above is what `scripts/init-workstation.sh` creates
+> **today**. A restructured `~/.homelab/{local,backups}` layout is planned (per-host subfolders,
+> no more mixing secrets and config) — `scripts/lib/paths.sh` is the source of truth for that
+> target structure; `TODO.md` has the full rationale. Not yet wired into any script — check
+> `paths.sh` before assuming which layout is current.
+
 `init-workstation.sh` prompts for the server IP or DNS name and whether to generate each missing key.
 
 After running it, follow the printed **homelab-cluster next steps** to add the age public key to
