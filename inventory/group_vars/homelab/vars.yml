@@ -53,8 +53,8 @@ storage_root_dirs:
 k3s_version: "v1.31.4+k3s1"
 
 # --- Flux bootstrap (roles: flux_auth, flux_bootstrap) ---
+# flux_auth_bootstrap_ssh_key_file / flux_bootstrap_sops_age_key_file are per-host —
+# see inventory/host_vars/<hostname>.yml.
 flux_bootstrap_version: "2.4.0"
 flux_bootstrap_ssh_url: ssh://git@github.com/rene-ott/homelab-cluster
 flux_bootstrap_path: clusters/core
-flux_auth_bootstrap_ssh_key_file: "{{ homelab_local_ssh_key_dir }}/flux-deploy"
-flux_bootstrap_sops_age_key_file: "{{ '~/.homelab-secrets/age/homelab.agekey' | expanduser }}"

@@ -1,0 +1,10 @@
+---
+# Per-host secret key paths — the ~/.homelab/local/atlas/... layout (scripts/lib/paths.sh) is
+# per-host, so these can't live in group_vars alongside the fleet-wide vars. Consumed by:
+# roles/bootstrap_user (ansible_admin_key_path, via inventory/hosts.yml's
+# ansible_ssh_private_key_file), flux_auth (flux_auth_bootstrap_ssh_key_file), flux_bootstrap
+# (flux_bootstrap_sops_age_key_file).
+
+ansible_admin_key_path: "{{ '~/.homelab/local/atlas/bootstrap_user/id_ed25519' | expanduser }}"
+flux_auth_bootstrap_ssh_key_file: "{{ '~/.homelab/local/atlas/flux_auth/deploy_key' | expanduser }}"
+flux_bootstrap_sops_age_key_file: "{{ '~/.homelab/local/atlas/flux_bootstrap/sops-age.key' | expanduser }}"

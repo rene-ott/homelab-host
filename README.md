@@ -16,12 +16,12 @@ Ansible project for a single-node Debian server and its K3s platform. Manages th
 ./scripts/init-workstation.sh
 ```
 
-Prompts for the server address and generates missing keys. Safe to re-run. Keys land in:
+Prompts for a host alias, the server address, and generates missing keys. Safe to re-run. Keys land in:
 
 ```
-~/.homelab-secrets/ssh/ansible        # Ansible SSH key
-~/.homelab-secrets/ssh/flux-deploy    # Flux deploy key
-~/.homelab-secrets/age/homelab.agekey # SOPS age key
+~/.homelab/local/atlas/bootstrap_user/id_ed25519    # Ansible SSH key
+~/.homelab/local/atlas/flux_auth/deploy_key         # Flux deploy key
+~/.homelab/local/atlas/flux_bootstrap/sops-age.key  # SOPS age key
 ```
 
 After generating the age key, register its public key in `homelab-cluster` before running `flux_bootstrap`:
@@ -30,7 +30,7 @@ After generating the age key, register its public key in `homelab-cluster` befor
 2. Encrypt secrets and commit only the encrypted output:
 
 ```bash
-SOPS_AGE_KEY_FILE=~/.homelab-secrets/age/homelab.agekey \
+SOPS_AGE_KEY_FILE=~/.homelab/local/atlas/flux_bootstrap/sops-age.key \
   sops -e -i <secret>.sops.yaml
 ```
 
@@ -61,7 +61,7 @@ ansible-playbook playbooks/site.yml --tags flux_bootstrap
 Before `flux_bootstrap`: add the deploy public key to homelab-cluster's GitHub deploy keys, and register the age public key in `.sops.yaml` in homelab-cluster:
 
 ```bash
-SOPS_AGE_KEY_FILE=~/.homelab-secrets/age/homelab.agekey \
+SOPS_AGE_KEY_FILE=~/.homelab/local/atlas/flux_bootstrap/sops-age.key \
   sops -e -i <secret>.sops.yaml   # encrypt before committing
 ```
 
@@ -110,7 +110,8 @@ $ip = Read-Host "Server IP"; Add-Content -Path "$env:WinDir\System32\drivers\etc
 
 ```bash
 ./scripts/backup-secrets.sh          # interactive backup / restore
-./scripts/clear-workstation.sh       # undo init-workstation.sh (removes ~/.homelab-secrets/ and SSH Include)
+./scripts/clear-workstation.sh       # removes ~/.homelab-secrets/ + SSH Include — not yet updated for
+                                      #   the ~/.homelab/ layout init-workstation.sh now creates
 ```
 
 ## Docs

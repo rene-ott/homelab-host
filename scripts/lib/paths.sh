@@ -1,17 +1,17 @@
 # shellcheck shell=bash
 #
-# scripts/lib/paths.sh — sourceable path variables for the *target* ~/.homelab/ layout
-# proposed in TODO.md (workstation secrets/config reorg). Nothing sources this file yet —
-# scripts/*.sh still define their own ~/.homelab-secrets / ~/.homelab-backups paths inline.
-# This exists so the new layout has one canonical definition ready for scripts to migrate
-# onto later (see TODO.md "Known blast radius"), instead of each script re-deriving it.
+# Sourceable path variables for the ~/.homelab layout (see TODO.md for full rationale).
+# scripts/init-workstation.sh sources this file; scripts/backup-secrets.sh, backup-config.sh,
+# backup-wireguard.sh, wireguard-client.sh, and clear-workstation.sh still define their own
+# ~/.homelab-secrets / ~/.homelab-backups paths inline (see docs/planning/TASKS.md's "Finish
+# wiring scripts/lib/paths.sh into the remaining scripts" for the remaining migration).
 #
-# Target layout (see TODO.md for full rationale):
+# Target layout:
 #
 #   ~/.homelab/
 #   ├── local/
 #   │   ├── ssh_config.partial           # SSH Host aliases for the whole fleet
-#   │   └── <HOMELAB_HOST>/              # e.g. atlas
+#   │   └── <HL_HOST>/                   # e.g. atlas
 #   │       ├── bootstrap_user/
 #   │       │   └── id_ed25519 (+.pub)
 #   │       ├── flux_auth/
@@ -25,38 +25,40 @@
 #   └── backups/
 #       ├── local/                        # snapshots of local/ — restores this machine
 #       └── server/
-#           └── <HOMELAB_HOST>/           # snapshots of that host's server-side state
+#           └── <HL_HOST>/                # snapshots of that host's server-side state
 #               ├── config/
 #               └── wireguard/
 #
-# HOMELAB_HOST selects the per-host subtree; set it before sourcing to override the default:
-#   HOMELAB_HOST=nas source scripts/lib/paths.sh
-HOMELAB_HOST="${HOMELAB_HOST:-atlas}"
+# Override before sourcing:
+#
+#   HL_HOST=nas source scripts/lib/paths.sh
 
-HOMELAB_ROOT="${HOME}/.homelab"
-HOMELAB_LOCAL_DIR="${HOMELAB_ROOT}/local"
-HOMELAB_BACKUPS_DIR="${HOMELAB_ROOT}/backups"
+HL_HOST="${HL_HOST:-atlas}"
 
-# Fleet-wide, not per-host — see TODO.md's rationale for why the SSH alias stays a single file.
-HOMELAB_SSH_CONFIG="${HOMELAB_LOCAL_DIR}/ssh_config.partial"
+HL_ROOT="${HOME}/.homelab"
+HL_LOCAL="${HL_ROOT}/local"
+HL_BACKUPS="${HL_ROOT}/backups"
 
-HOMELAB_HOST_LOCAL_DIR="${HOMELAB_LOCAL_DIR}/${HOMELAB_HOST}"
+HL_SSH_CONFIG="${HL_LOCAL}/ssh_config.partial"
+HL_GLOBAL_SSH_CONFIG="${HOME}/.ssh/config"
 
-HOMELAB_BOOTSTRAP_USER_DIR="${HOMELAB_HOST_LOCAL_DIR}/bootstrap_user"
-HOMELAB_BOOTSTRAP_USER_KEY="${HOMELAB_BOOTSTRAP_USER_DIR}/id_ed25519"
+HL_HOST_LOCAL="${HL_LOCAL}/${HL_HOST}"
 
-HOMELAB_FLUX_AUTH_DIR="${HOMELAB_HOST_LOCAL_DIR}/flux_auth"
-HOMELAB_FLUX_AUTH_KEY="${HOMELAB_FLUX_AUTH_DIR}/deploy_key"
+HL_BOOTSTRAP_USER="${HL_HOST_LOCAL}/bootstrap_user"
+HL_BOOTSTRAP_USER_KEY="${HL_BOOTSTRAP_USER}/id_ed25519"
 
-HOMELAB_FLUX_BOOTSTRAP_DIR="${HOMELAB_HOST_LOCAL_DIR}/flux_bootstrap"
-HOMELAB_FLUX_BOOTSTRAP_AGE_KEY="${HOMELAB_FLUX_BOOTSTRAP_DIR}/sops-age.key"
+HL_FLUX_AUTH="${HL_HOST_LOCAL}/flux_auth"
+HL_FLUX_AUTH_KEY="${HL_FLUX_AUTH}/deploy_key"
 
-HOMELAB_WIREGUARD_DIR="${HOMELAB_HOST_LOCAL_DIR}/wireguard"
-HOMELAB_WIREGUARD_DEVICES_DIR="${HOMELAB_WIREGUARD_DIR}/devices"
+HL_FLUX_BOOTSTRAP="${HL_HOST_LOCAL}/flux_bootstrap"
+HL_FLUX_BOOTSTRAP_AGE_KEY="${HL_FLUX_BOOTSTRAP}/sops-age.key"
 
-HOMELAB_BACKUPS_LOCAL_DIR="${HOMELAB_BACKUPS_DIR}/local"
+HL_WIREGUARD="${HL_HOST_LOCAL}/wireguard"
+HL_WIREGUARD_DEVICES="${HL_WIREGUARD}/devices"
 
-HOMELAB_BACKUPS_SERVER_DIR="${HOMELAB_BACKUPS_DIR}/server"
-HOMELAB_HOST_BACKUPS_DIR="${HOMELAB_BACKUPS_SERVER_DIR}/${HOMELAB_HOST}"
-HOMELAB_HOST_CONFIG_BACKUP_DIR="${HOMELAB_HOST_BACKUPS_DIR}/config"
-HOMELAB_HOST_WIREGUARD_BACKUP_DIR="${HOMELAB_HOST_BACKUPS_DIR}/wireguard"
+HL_BACKUPS_LOCAL="${HL_BACKUPS}/local"
+HL_BACKUPS_SERVER="${HL_BACKUPS}/server"
+
+HL_HOST_BACKUPS="${HL_BACKUPS_SERVER}/${HL_HOST}"
+HL_HOST_CONFIG_BACKUP="${HL_HOST_BACKUPS}/config"
+HL_HOST_WIREGUARD_BACKUP="${HL_HOST_BACKUPS}/wireguard"

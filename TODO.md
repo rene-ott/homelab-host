@@ -81,22 +81,27 @@ Both were open questions in earlier discussion; `scripts/lib/paths.sh` has since
 answer for each, so they're settled unless someone deliberately revisits them:
 
 - **Flux material (`flux_auth`/`flux_bootstrap`) is per-host, not shared** — `paths.sh` nests
-  `HOMELAB_FLUX_AUTH_DIR`/`HOMELAB_FLUX_BOOTSTRAP_DIR` under `HOMELAB_HOST_LOCAL_DIR` (i.e. under
-  `atlas/`), confirming the "per-host isolation, regenerate as needed" lean.
+  `HL_FLUX_AUTH`/`HL_FLUX_BOOTSTRAP` under `HL_HOST_LOCAL` (i.e. under `atlas/`), confirming the
+  "per-host isolation, regenerate as needed" lean.
 - **`bootstrap_user`'s key file stays named `id_ed25519`** — `paths.sh` defines
-  `HOMELAB_BOOTSTRAP_USER_KEY` as `bootstrap_user/id_ed25519`; the `ansible_key` alternative was
+  `HL_BOOTSTRAP_USER_KEY` as `bootstrap_user/id_ed25519`; the `ansible_key` alternative was
   considered and dropped.
 
 ## Known blast radius (not yet scoped in detail)
 
-Touches at minimum: `scripts/init-workstation.sh`, `scripts/backup-secrets.sh` (hardcoded
-`SECRET_FILES`/`SRCS`/`DSTS` arrays), `scripts/backup-config.sh`, `scripts/backup-wireguard.sh`,
-`scripts/wireguard-client.sh`, `scripts/clear-workstation.sh`, `roles/flux_auth/defaults`
-(`flux_auth_bootstrap_ssh_key_file`), `roles/flux_bootstrap/defaults`
-(`flux_bootstrap_sops_age_key_file`), `inventory/group_vars/all.yml` (`homelab_local_ssh_key_dir`),
-`inventory/hosts.yml`/`host_vars/atlas.yml` (`ansible_ssh_private_key_file` becomes a per-host
-override), and docs (`CLAUDE.md`, `docs/architecture.md`, `README.md`).
+**Done:** `scripts/init-workstation.sh` (rewritten onto `scripts/lib/paths.sh`, 5 explicit steps,
+per-host `ssh_config.partial` merge/replace), `inventory/group_vars/all.yml` (dropped
+`homelab_local_ssh_key_dir`/`ansible_admin_key_path`), `inventory/group_vars/homelab/vars.yml`
+(dropped the Flux key-path vars), new `inventory/host_vars/atlas.yml` (the three per-host secret
+key paths), and docs (`CLAUDE.md`, `docs/architecture.md`, `README.md`) updated wherever they
+described the changed behavior.
 
-This is a separate concern from the per-role `<role>_enabled` toggle work (see
-`docs/planning/TASKS.md` `## Now` / branch `feature/implement-multi-host-support`) — decide
-separately whether it lands on the same branch or its own.
+**Still touches:** `scripts/backup-secrets.sh` (hardcoded `SECRET_FILES`/`SRCS`/`DSTS` arrays),
+`scripts/backup-config.sh`, `scripts/backup-wireguard.sh`, `scripts/wireguard-client.sh`,
+`scripts/clear-workstation.sh` — all five still read/write `~/.homelab-secrets/`/
+`~/.homelab-backups/` and need migrating onto `paths.sh` (see `docs/planning/TASKS.md`'s "Finish
+wiring scripts/lib/paths.sh into the remaining scripts" Someday item).
+
+This is a separate concern from the per-role `<role>_enabled` toggle work (branch
+`feature/implement-multi-host-support`, see `docs/planning/TASKS.md`'s Someday item on verifying
+it against `atlas`) — decide separately whether remaining work lands on the same branch or its own.
