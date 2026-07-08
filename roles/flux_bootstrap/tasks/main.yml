@@ -72,6 +72,7 @@
       type: Opaque
       data:
         age.agekey: "{{ lookup('file', flux_bootstrap_sops_age_key_file) | b64encode }}"
+  changed_when: true
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   no_log: true

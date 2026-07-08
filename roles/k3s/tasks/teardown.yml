@@ -10,3 +10,4 @@
 - name: Run k3s-uninstall.sh
   ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
   when: k3s_uninstall_script.stat.exists
+  changed_when: true
