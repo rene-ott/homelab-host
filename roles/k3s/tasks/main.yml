@@ -6,11 +6,17 @@
     update_cache: true
     cache_valid_time: "{{ apt_cache_valid_time }}"
 
+- name: Check whether K3s is already installed
+  ansible.builtin.stat:
+    path: /etc/systemd/system/k3s.service
+  register: k3s_service_unit
+
 - name: Download K3s installer script
   ansible.builtin.get_url:
     url: https://get.k3s.io
     dest: /tmp/k3s-install.sh
     mode: "0755"
+  when: not k3s_service_unit.stat.exists
 
 - name: Install K3s
   ansible.builtin.command:

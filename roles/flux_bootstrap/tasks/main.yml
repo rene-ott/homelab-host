@@ -9,11 +9,17 @@
       flux_bootstrap requires K3s — set k3s_enabled: true or disable flux_auth_enabled/
       flux_bootstrap_enabled too.
 
+- name: Check whether the flux CLI is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/flux
+  register: flux_bootstrap_cli_bin
+
 - name: Download flux CLI archive
   ansible.builtin.get_url:
     url: "https://github.com/fluxcd/flux2/releases/download/v{{ flux_bootstrap_version }}/flux_{{ flux_bootstrap_version }}_linux_amd64.tar.gz"
     dest: "/tmp/flux_{{ flux_bootstrap_version }}_linux_amd64.tar.gz"
     mode: "0644"
+  when: not flux_bootstrap_cli_bin.stat.exists
 
 - name: Install flux CLI
   ansible.builtin.unarchive:
