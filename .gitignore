@@ -21,3 +21,6 @@ __pycache__/
 .idea/
 .vscode/
 *.swp
+
+# Claude Code local runtime state
+.claude/*.lock

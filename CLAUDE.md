@@ -1,163 +1,228 @@
 # CLAUDE.md
 
-Guidance for Claude Code in this repo — the single rules file for the host Ansible project,
-in two sections: **repo map** and **Ansible rules**.
+Guidance for Claude Code in this repo. This is the single rules and architecture file for the
+host Ansible project.
 
 ## Repo Purpose
 
-`homelab-host` is the Ansible project for the single-node Debian
-server and its K3s platform. It configures the OS layer (security, firewall, cockpit), installs
-K3s, and bootstraps Flux CD once — pointing Flux at the companion
-**[`homelab-cluster`](https://github.com/rene-ott/homelab-cluster)** GitOps repo. After bootstrap,
-all K8s app changes go into `homelab-cluster`; this repo only manages the host.
+`homelab-host` is the Ansible project for the Debian homelab server and its K3s platform. It
+configures the OS layer, installs K3s, and bootstraps Flux CD once.
 
-Ansible code (`inventory/`, `roles/`, `playbooks/`, `ansible.cfg`) lives at the **repo root**.
-The Flux GitOps tree (apps, infrastructure, SOPS secrets) lives in the separate
-**`rene-ott/homelab-cluster`** repository — Flux watches that repo and deploys workloads
-automatically. Ansible never touches K8s apps.
+Kubernetes apps do **not** live in this repo. Apps, HelmReleases, Kustomizations, and Kubernetes
+runtime secrets live in the separate `rene-ott/homelab-cluster` GitOps repo. Flux watches that repo
+and deploys workloads automatically after bootstrap.
 
-### Working Directories & shared docs
+## Repo Map
 
-- **Run Claude Code and Ansible from the repo root** — `ansible.cfg` is at the root.
-- **Project docs and planning live under `docs/`** (at the repo root):
-  `docs/architecture.md` (design + ports), `docs/planning/TASKS.md` (the living Now/Next/Someday plan),
-  and `docs/planning/LOG.md` (one line per shipped change).
+- Run Claude Code and Ansible from the repo root. `ansible.cfg` is at the root.
+- Ansible code lives at the repo root: `inventory/`, `roles/`, `playbooks/`, `ansible.cfg`.
+- Planning lives in `docs/planning/TASKS.md`.
+- Reusable Claude Code workflows live in `.claude/commands/`.
+- There is no `docs/architecture.md`, no `LOG.md`, no per-task files, and no separate changelog.
+- Current/future intent lives in `TASKS.md`; shipped history lives in git.
 
-## Git Commits
+## Task Workflow
 
-Commits in this repo must not carry a `Co-Authored-By: Claude` trailer or any other AI-attribution
-line — this overrides Claude Code's default commit-message behavior. Commit messages should read as
-if written solely by the human author.
+`docs/planning/TASKS.md` is the single living plan:
 
----
+- `## Now` — the one thing in flight, kept short
+- `## Next` — ordered shortlist
+- `## Someday` — unordered ideas and parked implementation notes
 
-# Ansible Rules
+Loop:
 
-## Project Purpose
+1. Pick one item from `Next`
+2. Write it into `Now`
+3. Build only that item
+4. Verify it
+5. Commit it
+6. Clear `Now`
 
-This repo configures the single-node Debian server and installs the K3s platform. Ansible code
-(`inventory/`, `roles/`, `playbooks/`, `ansible.cfg`) lives at the repo root — run all Ansible
-commands from here. See `docs/architecture.md` for the full picture.
+Do not create status fields, per-task files, migration plans, TODO inventories, changelogs, or
+additional planning documents.
 
-## Key Rules
+## Claude Code Operating Mode
 
-1. **One role per concern.** Do not merge multiple services into one role.
-2. **Firewall ports in group_vars only.** All host-level ports live in `inventory/group_vars/homelab/vars.yml`. No role other than `firewall` may open ports.
-3. **K3s platform ≠ K3s apps.** The `k3s` role installs K3s only. `flux_auth` and `flux_bootstrap` handle Flux CD bootstrap. K3s apps are managed by Flux CD from the `homelab-cluster` repo — not by Ansible.
-4. **K3s apps use ingress.** Apps are exposed on 80/443 via Traefik. Do not open app-specific host ports.
-5. **No plain-text secrets in repo.** Ansible reads the SOPS Age private key at `~/.homelab-secrets/age/homelab.agekey` on the workstation and injects it into `flux-system/sops-age` via the `flux_bootstrap` role (`no_log: true`). This is unconditional — Ansible fails fast with a remediation message if the key is absent. All Kubernetes runtime secrets (e.g. `CLOUDFLARE_API_TOKEN`) live as SOPS-encrypted manifests in the `homelab-cluster` repo and are decrypted in-cluster by Flux. Non-secret config (server host, Flux URL/path, key paths) lives directly in inventory files and role defaults — no `.env`, no `scripts/setup.sh`, no `lookup('env', ...)`.
-6. **Config only for implemented roles.** `inventory/group_vars` and role defaults hold only variables an implemented role actually uses — no speculative config for work not yet done. Unbuilt ideas (and their planned variables) live in `docs/planning/TASKS.md` until built.
-7. **Bootstrap access uses a dedicated playbook.** You create a human admin (password + sudo) during the Debian install. Run `scripts/init-workstation.sh` first (generates all three keys, writes SSH alias), then `playbooks/bootstrap-user.yml` (with `inventory/bootstrap.yml` and `--ask-pass --ask-become-pass`) provisions the **`ansible`** user on the server. Every run after uses `playbooks/site.yml` connecting as `ansible` by key. The `flux_auth` role verifies the Flux deploy key can reach GitHub.
-8. **The `ansible` automation user is provisioned by `bootstrap_user`.** It creates the user (sudo group, `/bin/bash`) and authorizes the workstation-generated public key. It must never be given a usable password or deleted.
-9. **Private SSH keys must stay on the workstation.** Deploy only public keys, via `ansible.posix.authorized_key` — never raw `copy` for `authorized_keys`. (`scripts/init-workstation.sh` generates the `ansible` keypair on the workstation; only its public half reaches the server.) **Carve-out — the Flux deploy key:** the `flux_bootstrap` role is the one exception, since a deploy key's private half *must* reach the server (it lives in the in-cluster `flux-system` Secret for Flux to pull). The role stages it into a `0600` temp file (`copy` + `no_log: true`) for the bootstrap only, then deletes it in an `always` block. Applies *only* to the Flux deploy key — `authorized_keys` still follows the rule above.
-10. **Passwordless sudo for the `ansible` user is configured by `bootstrap_user`.** Via `/etc/sudoers.d/ansible` with `ansible ALL=(ALL) NOPASSWD:ALL` (owner root, group root, mode 0440, validated with `visudo -cf %s`). The bootstrap run needs `--ask-pass --ask-become-pass`; once `ansible` exists with NOPASSWD sudo and its key, all later runs need neither.
-11. **Every role except `security`/`firewall` is individually toggleable per host.** Each has a `<role>_enabled` boolean in its own `defaults/main.yml`, defaulting to `true` — set `<role>_enabled: false` in a host's `inventory/host_vars/<hostname>.yml` to skip that role entirely on that host. `playbooks/site.yml`/`verify.yml` gate each role with `when: <role>_enabled | default(true) | bool`; because that `when:` applies to *every* task the role contributes (Ansible's documented behavior for the `roles:` keyword and static `import_role`), it also skips a disabled role's own fail-fast asserts (e.g. `flux_auth`'s/`flux_bootstrap`'s workstation-key checks from rule #5) — the assert and the functional tasks are never split. `security`/`firewall` have no toggle and always run; there's no scenario where a homelab host should skip OS hardening or the firewall. `bootstrap_user` isn't part of this scheme either — it only runs via the separate `bootstrap-user.yml` flow (rule #7), not `site.yml`. `flux_auth`/`flux_bootstrap` require `k3s_enabled: true`, and `samba` requires `storage_enabled: true` — both `site.yml`'s `pre_tasks` and each role's own guard task fail fast on an inconsistent combination. This is architecturally distinct from the removed `flux_bootstrap_enable_sops` flag (rule #5's "unconditional" fail-fast is about a flag that gated one sub-task *inside* an always-running role while its assert stayed live — the opposite of gating the whole role from outside).
+Work in small, bounded passes.
+
+Before editing, read this file and `docs/planning/TASKS.md`. Treat `TASKS.md` as the only planning
+source. Implement only the current `## Now` item unless the human explicitly asks otherwise.
+
+Use four modes:
+
+1. **Scope** — summarize the current task, scope, non-scope, likely files, safe order, and verification.
+2. **Implement** — make the smallest coherent change for `Now` only.
+3. **Review** — inspect the diff for scope creep, rule violations, architecture issues, and missing verification.
+4. **Close** — after verification, suggest a commit message and the `TASKS.md` edit that clears `Now`.
+
+Do not commit, clear `Now`, or start the next task unless explicitly asked.
+
+Commit messages must not contain `Co-Authored-By`, Claude references, AI attribution, or any other
+AI-attribution trailer.
+
+## Core Ansible Rules
+
+1. **One role per concern.** Do not merge unrelated services into one role.
+2. **Firewall ports in group vars only.** Host-level ports live in `inventory/group_vars/homelab/vars.yml`. No role except `firewall` may open ports.
+3. **K3s platform is not K3s apps.** This repo installs K3s and bootstraps Flux only. App changes go to `homelab-cluster`.
+4. **K3s apps use ingress.** Apps are exposed through Traefik on 80/443. Do not open app-specific host ports.
+5. **No plaintext secrets in repo.** Kubernetes runtime secrets live as SOPS-encrypted manifests in `homelab-cluster`.
+6. **No speculative config.** Inventory and defaults should contain only variables used by implemented roles.
+7. **Bootstrap access is separate.** `bootstrap-user.yml` provisions the `ansible` OS user; `site.yml` runs after that as `ansible` by key.
+8. **Private SSH keys stay on the workstation.** Deploy public keys only, except the documented Flux deploy-key bootstrap carve-out.
+9. **`security` and `firewall` are mandatory.** They are not toggleable.
+10. **Every other `site.yml` role is toggleable per host.** Each toggleable role has `<role>_enabled` in its own `defaults/main.yml`, defaulting to `true`.
 
 ## Role Map
 
 | Role | Concern | Toggle |
 |------|---------|--------|
-| bootstrap_user | (bootstrap only) creates `ansible` OS user, installs public key, grants passwordless sudo | always on, not part of `site.yml` |
-| security | SSH hardening, fail2ban, auto-upgrades | always on |
-| firewall | ufw rules (reads `inventory/group_vars/homelab/vars.yml`) | always on |
-| wireguard | Split-tunnel WireGuard VPN — UDP 51820, overlay 10.10.10.0/24, peers in `vars.yml` | `wireguard_enabled` |
-| cockpit | Web management UI on port 9090 | `cockpit_enabled` |
-| storage | Shared, app-agnostic host directory roots for K3s apps (media/config/cache) | `storage_enabled` |
-| samba | Guest, read-write SMB share exposing `/srv/media` over the network (port 445) | `samba_enabled` (requires `storage_enabled`) |
-| k3s | K3s platform installation and configuration (wait for node Ready) | `k3s_enabled` |
-| flux_auth | Flux CD deploy-key lifecycle: verify key exists, display pubkey for GitHub registration, gate before bootstrap | `flux_auth_enabled` (requires `k3s_enabled`) |
-| flux_bootstrap | Flux CD bootstrap: install flux CLI, run flux bootstrap git, optionally seed sops-age Secret | `flux_bootstrap_enabled` (requires `k3s_enabled`) |
+| `bootstrap_user` | Bootstrap-only creation of the `ansible` OS user, public key, and passwordless sudo | not part of `site.yml` |
+| `security` | SSH hardening, fail2ban, unattended upgrades | always on |
+| `firewall` | UFW rules from `inventory/group_vars/homelab/vars.yml` | always on |
+| `wireguard` | Split-tunnel VPN on UDP 51820, overlay `10.10.10.0/24` | `wireguard_enabled` |
+| `cockpit` | Web management UI on port 9090 | `cockpit_enabled` |
+| `storage` | Shared host directory roots under `/srv` | `storage_enabled` |
+| `samba` | Guest read-write SMB shares for media/misc | `samba_enabled`, requires `storage_enabled` |
+| `k3s` | K3s platform install and node readiness | `k3s_enabled` |
+| `flux_auth` | Flux deploy-key checks and GitHub registration pause | `flux_auth_enabled`, requires `k3s_enabled` |
+| `flux_bootstrap` | Flux bootstrap and SOPS age Secret injection | `flux_bootstrap_enabled`, requires `k3s_enabled` |
+
+`site.yml` and `verify.yml` must gate toggleable roles with:
+
+```yaml
+when: <role>_enabled | default(true) | bool
+```
+
+`flux_auth` and `flux_bootstrap` require `k3s_enabled: true`. `samba` requires `storage_enabled: true`.
+Both top-level dependency validation and role-local guards should fail fast for inconsistent
+combinations, including tag-scoped runs.
+
+## Execution Order
+
+`bootstrap_user` runs separately via `playbooks/bootstrap-user.yml`.
+
+`playbooks/site.yml` applies roles in this order:
+
+1. `security`
+2. `firewall`
+3. `wireguard`
+4. `cockpit`
+5. `storage`
+6. `samba`
+7. `k3s`
+8. `flux_auth`
+9. `flux_bootstrap`
+
+`playbooks/verify.yml` is read-only and should report `changed=0` on a healthy system.
+
+## Access Model
+
+A human admin user is created during Debian install. Before touching the server, run
+`scripts/init-workstation.sh` on the workstation. It creates `~/.homelab-secrets/`, generates the
+Ansible SSH key, Flux deploy key, and SOPS age key, and writes the SSH alias.
+
+First server run:
+
+```bash
+ansible-playbook playbooks/bootstrap-user.yml -i inventory/bootstrap.yml -u <admin> --ask-pass --ask-become-pass
+```
+
+Every later run:
+
+```bash
+ansible-playbook playbooks/site.yml
+```
+
+The `ansible` user must use key-only SSH and passwordless sudo. Keep the human admin as a break-glass
+password login.
+
+## Secrets Model
+
+Local workstation secrets live under `~/.homelab-secrets/` and are never committed.
+
+Important paths:
+
+- `~/.homelab-secrets/ssh/ansible`
+- `~/.homelab-secrets/ssh/flux-deploy`
+- `~/.homelab-secrets/ssh/config`
+- `~/.homelab-secrets/age/homelab.agekey`
+- `~/.homelab-secrets/wireguard/`
+
+The Flux deploy key is the only private-key carve-out: `flux_bootstrap` may stage it temporarily on
+the server with `0600` permissions and `no_log: true`, run `flux bootstrap git`, then delete the temp
+file in an `always` block. This carve-out does not apply to `authorized_keys`.
+
+The SOPS age private key is injected into the cluster as `flux-system/sops-age` by `flux_bootstrap`.
+Ansible should fail fast with a clear remediation message if the age key is missing.
+
+Kubernetes runtime secrets such as Cloudflare tokens live only in `homelab-cluster` as
+SOPS-encrypted manifests.
+
+## K3s and Flux Model
+
+Ansible installs the K3s platform and bootstraps Flux CD once.
+
+After bootstrap:
+
+- Flux watches `rene-ott/homelab-cluster`
+- app changes are commits in `homelab-cluster`
+- this repo does not manage app manifests, HelmReleases, or app namespaces
+
+Flux bootstrap uses `flux bootstrap git` over SSH with a repo deploy key, not a GitHub PAT.
+
+## Port Model
+
+All host-level firewall ports are declared only in `inventory/group_vars/homelab/vars.yml`.
+
+Current ports:
+
+| Port | Proto | Service |
+|------|-------|---------|
+| 22 | TCP | SSH |
+| 9090 | TCP | Cockpit |
+| 6443 | TCP | K3s API |
+| 80 | TCP | HTTP ingress |
+| 443 | TCP | HTTPS ingress |
+| 445 | TCP | Samba |
+| 51820 | UDP | WireGuard |
+
+Only WireGuard UDP 51820 is intended for router forwarding. Do not forward Cockpit, K3s API,
+Traefik ingress, or Samba directly to the internet.
+
+## Backup Scripts
+
+Backup helpers are local/manual scripts, not part of `site.yml`:
+
+- `scripts/backup-secrets.sh` backs up selected `~/.homelab-secrets` files with `age -p`
+- `scripts/backup-config.sh` backs up/restores `/srv/config`
+- `scripts/backup-wireguard.sh` backs up/restores `/etc/wireguard/wg0.key` with `age -p`
+
+Do not make these automatic unless explicitly asked.
 
 ## Variable Files
 
 | File | Scope |
 |------|-------|
-| `inventory/group_vars/all.yml` | Bootstrap/access vars (`ansible_admin_user`, `ansible_admin_key_path`, `ansible_admin_sudo_group`, `homelab_local_ssh_key_dir`) |
-| `inventory/group_vars/homelab/vars.yml` | Non-secret operational vars: SSH port, apt cache, firewall ports, WireGuard listen port/overlay address/peers, storage directory roots, K3s/Flux versions + bootstrap coordinates |
-| `inventory/group_vars/homelab/secrets.sops.yml.example` | Documentation only — describes the future optional encrypted-secrets path |
+| `inventory/group_vars/all.yml` | bootstrap/access vars and local key paths |
+| `inventory/group_vars/homelab/vars.yml` | non-secret operational vars: ports, WireGuard, storage, K3s, Flux |
+| `inventory/group_vars/homelab/secrets.sops.yml.example` | inactive documentation for a possible future inventory-SOPS path |
 
-## Workstation One-Time Setup
-
-After a fresh clone, install tooling once:
-
-```bash
-# Install all workstation dependencies (idempotent, re-runnable)
-./scripts/install-deps.sh   # tooling only — no secrets, no SSH keys
-```
-
-All three keys (ansible SSH, flux-deploy SSH, SOPS age) are generated by `scripts/init-workstation.sh` —
-no manual `age-keygen` or `ssh-keygen` needed. Keys live under a single local directory:
-
-```text
-~/.homelab-secrets/
-├── ssh/
-│   ├── ansible          # private key for Ansible SSH login to VPS
-│   ├── ansible.pub
-│   ├── flux-deploy      # private key for Flux GitHub deploy-key bootstrap
-│   ├── flux-deploy.pub
-│   └── config           # SSH Host atlas alias (HostName, User, IdentityFile)
-├── age/
-│   └── homelab.agekey   # SOPS age keypair — private key stays local, never committed
-└── wireguard/
-    ├── workstation.key / .conf  # WireGuard client keypair + importable config
-    └── phone.key / .conf        # (generated by scripts/wireguard-client.sh)
-
-~/.homelab-backups/
-├── secrets/             # encrypted secrets backups (scripts/backup-secrets.sh)
-└── config/              # plain /srv/config backups (scripts/backup-config.sh)
-```
-
-`~/.ssh/config` gets one `Include ~/.homelab-secrets/ssh/config` line so `ssh atlas` works.
-
-`init-workstation.sh` prompts for the server IP or DNS name and whether to generate each missing key.
-
-After running it, follow the printed **homelab-cluster next steps** to add the age public key to
-`.sops.yaml`, encrypt secrets, and push `homelab-cluster`:
-
-```bash
-# Encrypt a secret in the homelab-cluster checkout:
-SOPS_AGE_KEY_FILE=~/.homelab-secrets/age/homelab.agekey \
-  sops -e -i infrastructure/configs/cert-manager/overlays/homelab/cloudflare-api-token.sops.yaml
-# Commit only the encrypted output — never commit a plaintext token
-```
+No `.env`, no `lookup('env', ...)`, and no inactive speculative variables.
 
 ## Useful Commands
 
-All commands run from the **repo root**. `ansible.cfg` sets `inventory = inventory/hosts.yml` — no flags needed for normal runs.
-
 ```bash
-# First run — init workstation, then bootstrap the ansible user
 ./scripts/init-workstation.sh
+
 ansible-playbook playbooks/bootstrap-user.yml -i inventory/bootstrap.yml -u <admin> --ask-pass --ask-become-pass
 
-# Everything after — runs as ansible by key, no flags
 ansible-playbook playbooks/site.yml
-
-# Useful narrowing / checks
-ansible-playbook playbooks/site.yml --tags <role>   # single role
-ansible-playbook playbooks/site.yml --check --diff  # post-bootstrap dry run
-ansible-playbook playbooks/verify.yml               # read-only health check
-ansible-playbook playbooks/verify.yml --tags <role> # single role
-ansible-lint playbooks/site.yml                     # lint
-ansible-playbook playbooks/site.yml --list-tags     # list accepted role tags
+ansible-playbook playbooks/site.yml --syntax-check
+ansible-playbook playbooks/site.yml --check --diff
+ansible-playbook playbooks/site.yml --tags <role>
+ansible-playbook playbooks/verify.yml
+ansible-playbook playbooks/verify.yml --tags <role>
+ansible-lint playbooks/site.yml
+ansible-playbook playbooks/site.yml --list-tags
 ```
-
-## Task Workflow
-
-Planning lives in two flat files under `docs/planning/` — no per-task files, no status lifecycle:
-
-- **`docs/planning/TASKS.md`** — the living plan: `## Now` (the one thing in flight, ≤5 lines with a few
-  checkboxes), `## Next` (ordered shortlist), `## Someday` (unordered ideas + their impl notes).
-- **`docs/planning/LOG.md`** — append-only, newest first, one line per shipped change.
-
-The loop: pick from **Next** → write it into **Now** (goal + checkboxes) → build → verify (for Ansible,
-`--syntax-check` then `--tags <role>` on the server; for apps, commit to `homelab-cluster` and let Flux reconcile) →
-commit (the message is the detailed record) → add one line to **LOG.md** → clear **Now**.
-
-## Access Model
-
-- A human **admin** (password + sudo) is created during the Debian install.
-- `scripts/init-workstation.sh` (run once) generates keys and writes the SSH alias on the workstation.
-- `playbooks/bootstrap-user.yml` (run once, with `inventory/bootstrap.yml`) connects as the admin over password and provisions the **`ansible`** user via `bootstrap_user`: workstation-generated keypair (public half on the server) and passwordless sudo via `/etc/sudoers.d/ansible`.
-- Every run after uses `playbooks/site.yml`, connecting as `ansible` by key — no `--ask-pass`/`--ask-become-pass`.
-- SSH hardening (disabling password login, `sshd_config`) belongs to the `security` role. Run `security` only **after** `ansible` key login is confirmed — otherwise you close the admin's password channel before the key works.
