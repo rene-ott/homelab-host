@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# Backs up / restores the WireGuard server's private key (/etc/wireguard/wg0.key).
-# This is the only WireGuard state that isn't already in git — the peer list, listen
-# port, and overlay subnet all live in inventory/group_vars/homelab/vars.yml. Restoring
-# this key onto a freshly rebuilt server preserves the server's identity (public key),
-# so existing client configs keep working without any changes.
+# Copies ALL WireGuard state needed to rebuild the VPN into a plain (unencrypted) backup folder:
+#   - server private key:  atlas:/etc/wireguard/wg0.key
+#   - workstation clients:  ~/.homelab-secrets/wireguard/ (*.key, *.pub, *.conf)
+# TEMPORARY "get the data" solution: files are copied in the clear (no age, no tar) and a
+# RESTORE-NOTES.txt is written explaining how to apply each piece back MANUALLY. The peer list,
+# listen port, and overlay subnet already live in inventory/group_vars/homelab/vars.yml (git).
 # Not part of Ansible site.yml — run manually, disaster-recovery only.
+#
+# WARNING: the backup folder holds plaintext private keys. Keep it off shared storage and delete
+# it once the data is safely stored elsewhere.
 set -euo pipefail
 
 REMOTE_HOST="atlas"
 REMOTE_KEY_PATH="/etc/wireguard/wg0.key"
-BACKUP_DIR="${HOME}/.homelab-backups/wireguard"
+CLIENT_DIR="${HOME}/.homelab-secrets/wireguard"
+BACKUP_ROOT="${HOME}/.homelab-backups/wireguard"
 
 require_cmd() {
   for cmd in "$@"; do
@@ -19,67 +24,65 @@ require_cmd() {
 
 short() { echo "${1/#$HOME/\~}"; }
 
-require_cmd ssh age
+require_cmd ssh
 
-mkdir -p "${BACKUP_DIR}"
+timestamp="$(date +%Y%m%d-%H%M%S)"
+dest="${BACKUP_ROOT}/${timestamp}"
+mkdir -p "${dest}/server" "${dest}/workstation"
+chmod 700 "${BACKUP_ROOT}" "${dest}" "${dest}/server" "${dest}/workstation"
 
-# ── top-level menu ────────────────────────────────────────────────────────────
-printf '\nWireGuard server key — what do you want to do?\n'
-printf '  1) Backup\n'
-printf '  2) Restore\n'
-read -rp 'Choice [1/2]: ' _choice
-case "${_choice}" in
-  1) action="backup" ;;
-  2) action="restore" ;;
-  *) echo "Invalid choice." >&2; exit 1 ;;
-esac
+# ── server private key ─────────────────────────────────────────────────────────
+echo "Fetching server private key from ${REMOTE_HOST}:${REMOTE_KEY_PATH}..."
+ssh "${REMOTE_HOST}" "sudo -n cat ${REMOTE_KEY_PATH}" > "${dest}/server/wg0.key"
+chmod 600 "${dest}/server/wg0.key"
 
-# ── backup ────────────────────────────────────────────────────────────────────
-if [[ "${action}" == "backup" ]]; then
-  timestamp="$(date +%Y%m%d-%H%M%S)"
-  backup_path="${BACKUP_DIR}/wg0-${timestamp}.key.age"
-  tmp_plain="$(mktemp)"
-  trap 'rm -f "${tmp_plain}"' EXIT
-
-  echo "Fetching server private key from ${REMOTE_HOST}:${REMOTE_KEY_PATH}..."
-  ssh "${REMOTE_HOST}" "sudo -n cat ${REMOTE_KEY_PATH}" > "${tmp_plain}"
-
-  age -p -o "${backup_path}" "${tmp_plain}"
-  chmod 600 "${backup_path}"
-
-  echo "Backed up: $(short "${backup_path}")"
-  echo "Keep the passphrase safe — it's required to restore."
+# ── workstation client secrets ─────────────────────────────────────────────────
+client_count=0
+if [[ -d "${CLIENT_DIR}" ]] && compgen -G "${CLIENT_DIR}/*" >/dev/null; then
+  cp -a "${CLIENT_DIR}/." "${dest}/workstation/"
+  # Normalise permissions on the copies (cp -a carried the source dir's mode over).
+  chmod 700 "${dest}/workstation"
+  find "${dest}/workstation" -type f \( -name '*.key' -o -name '*.conf' \) -exec chmod 600 {} +
+  find "${dest}/workstation" -type f -name '*.pub' -exec chmod 644 {} +
+  client_count="$(find "${dest}/workstation" -type f | wc -l | tr -d ' ')"
+else
+  echo "WARNING: no workstation client secrets found in $(short "${CLIENT_DIR}") — skipping." >&2
 fi
 
-# ── restore ───────────────────────────────────────────────────────────────────
-if [[ "${action}" == "restore" ]]; then
-  mapfile -t backups < <(compgen -G "${BACKUP_DIR}/wg0-*.key.age" 2>/dev/null | sort -r || true)
+# ── restore notes ──────────────────────────────────────────────────────────────
+cat > "${dest}/RESTORE-NOTES.txt" <<EOF
+WireGuard backup taken ${timestamp}
+Plain (unencrypted) copies — temporary, apply manually.
 
-  if [[ ${#backups[@]} -eq 0 ]]; then
-    echo "ERROR: no backups found in $(short "${BACKUP_DIR}")" >&2
-    exit 1
-  fi
+Contents
+  server/wg0.key       server private key from ${REMOTE_HOST}:${REMOTE_KEY_PATH}
+  workstation/*        client keys/configs from ~/.homelab-secrets/wireguard/
+                       (${client_count} file(s); empty if none existed)
 
-  printf '\nAvailable backups:\n'
-  for i in "${!backups[@]}"; do
-    printf '  %d) %s\n' "$((i+1))" "$(short "${backups[$i]}")"
-  done
-  read -rp "Choice [1-${#backups[@]}] (default: 1 = most recent): " _restore_choice
-  _restore_choice="${_restore_choice:-1}"
-  _restore_idx=$(( _restore_choice - 1 ))
-  [[ "${_restore_idx}" -ge 0 && "${_restore_idx}" -lt "${#backups[@]}" ]] || { echo "Invalid choice." >&2; exit 1; }
-  restore_path="${backups[${_restore_idx}]}"
+1) Restore the SERVER private key
+   ssh ${REMOTE_HOST} "sudo install -o root -g root -m 600 /dev/stdin ${REMOTE_KEY_PATH}" < server/wg0.key
+   ansible-playbook playbooks/site.yml --tags wireguard
+   (re-renders wg0.conf from the restored key and restarts the interface)
 
-  tmp_plain="$(mktemp)"
-  trap 'rm -f "${tmp_plain}"' EXIT
-  age -d -o "${tmp_plain}" "${restore_path}"
+2) Restore the WORKSTATION client secrets
+   mkdir -p ~/.homelab-secrets/wireguard && chmod 700 ~/.homelab-secrets/wireguard
+   cp workstation/* ~/.homelab-secrets/wireguard/
+   chmod 600 ~/.homelab-secrets/wireguard/*.key ~/.homelab-secrets/wireguard/*.conf
+   chmod 644 ~/.homelab-secrets/wireguard/*.pub
+   # The *.conf files hold the server endpoint (host:port) — kept out of git, only stored here.
 
-  printf '\nThis will overwrite %s:%s with %s\n' "${REMOTE_HOST}" "${REMOTE_KEY_PATH}" "$(short "${restore_path}")"
-  read -rp 'Continue? [y/N] ' _ans
-  [[ "${_ans}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+3) Peer list / port / subnet
+   Already in inventory/group_vars/homelab/vars.yml (git) — nothing to restore.
+EOF
+chmod 600 "${dest}/RESTORE-NOTES.txt"
 
-  ssh "${REMOTE_HOST}" "sudo -n install -o root -g root -m 600 /dev/stdin ${REMOTE_KEY_PATH}" < "${tmp_plain}"
-
-  echo "Restored $(short "${restore_path}") -> ${REMOTE_HOST}:${REMOTE_KEY_PATH}"
-  echo "Now run: ansible-playbook playbooks/site.yml --tags wireguard"
+# ── summary ────────────────────────────────────────────────────────────────────
+printf '\nBacked up to %s:\n' "$(short "${dest}")"
+printf '  server/wg0.key\n'
+if [[ "${client_count}" -gt 0 ]]; then
+  find "${dest}/workstation" -type f -printf '  workstation/%P\n' | sort
+else
+  printf '  workstation/ (empty — no client secrets found)\n'
 fi
+printf '  RESTORE-NOTES.txt\n'
+printf '\nThese are PLAINTEXT secrets — store them safely and delete %s when done.\n' "$(short "${dest}")"

@@ -196,7 +196,7 @@ Backup helpers are local/manual scripts, not part of `site.yml`:
 
 - `scripts/backup-secrets.sh` backs up selected `~/.homelab-secrets` files with `age -p`
 - `scripts/backup-config.sh` backs up/restores `/srv/config`
-- `scripts/backup-wireguard.sh` backs up/restores `/etc/wireguard/wg0.key` with `age -p`
+- `scripts/backup-wireguard.sh` copies all WireGuard state (server `/etc/wireguard/wg0.key` plus the workstation `~/.homelab-secrets/wireguard/` client keys/configs) into a plaintext backup folder with a `RESTORE-NOTES.txt` for manual restore — temporary "get the data" solution, not encrypted
 
 Do not make these automatic unless explicitly asked.
 
