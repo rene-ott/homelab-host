@@ -10,14 +10,6 @@ lives in git.
 
 ## Now
 
-- **Per-role enable/disable toggles** — finish the multi-host groundwork on
-  `feature/implement-multi-host-support`.
-  - [ ] Fold the relevant architecture guidance into `CLAUDE.md`
-  - [ ] Add `.claude/commands/{plan,implement,review,close}.md`
-  - [ ] Remove `docs/architecture.md` and `docs/planning/LOG.md`
-  - [ ] Run full verification against `atlas`
-  - [ ] Commit and clear `Now`
-
 ## Next
 
 ## Someday
@@ -27,3 +19,8 @@ lives in git.
   with the relevant `*_enabled: false` overrides and a trimmed firewall port list, hand-edit its
   SSH alias into `~/.homelab-secrets/ssh/config`, then run `bootstrap-user.yml` → `site.yml` →
   `verify.yml` with `--limit <hostname>`.
+
+- **Re-encrypt the WireGuard backup** — `backup-wireguard.sh` currently writes plaintext
+  keys under `~/.homelab-backups/wireguard/` as a temporary get-the-data measure. Restore
+  `age -p` encryption (and a matching decrypt/restore path) once the data is captured, or
+  fold WireGuard client secrets into `backup-secrets.sh`'s encrypted archive.
