@@ -10,13 +10,6 @@ lives in git.
 
 ## Now
 
-- **Add a staging cluster** — second host `atlas-stg` → `clusters/core-stg`, alongside prod `atlas`
-  → `clusters/core`. Nested `prod`/`staging` groups under `homelab`; per-environment
-  `flux_bootstrap_path` in `group_vars/prod.yml` and `group_vars/staging.yml` (no homelab-wide
-  default). `init-workstation.sh` now writes both SSH aliases. Inventory/vars/script/docs done;
-  end-to-end bootstrap (`bootstrap-user.yml` → `site.yml --limit staging` → `verify.yml`) pending a
-  real staging machine.
-
 ## Next
 
 ## Someday
