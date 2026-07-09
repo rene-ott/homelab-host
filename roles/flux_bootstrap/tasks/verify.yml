@@ -17,9 +17,9 @@
   ansible.builtin.command: /usr/local/bin/flux get kustomizations --status-selector ready=true
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  register: flux_ks
+  register: flux_kustomizations
   changed_when: false
-  failed_when: flux_ks.rc != 0 or 'flux-system' not in flux_ks.stdout
+  failed_when: flux_kustomizations.rc != 0 or 'flux-system' not in flux_kustomizations.stdout
 
 - name: Verify sops-age Secret exists in flux-system
   ansible.builtin.command: k3s kubectl get secret sops-age -n flux-system

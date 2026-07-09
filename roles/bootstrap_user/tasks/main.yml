@@ -4,24 +4,24 @@
 
 - name: Ensure Ansible automation user exists
   ansible.builtin.user:
-    name: "{{ ansible_admin_user }}"
+    name: "{{ bootstrap_user_name }}"
     shell: /bin/bash
-    groups: "{{ ansible_admin_sudo_group }}"
+    groups: "{{ bootstrap_user_sudo_group }}"
     append: true
     create_home: true
     state: present
 
 - name: Install generated public key for Ansible automation user
   ansible.posix.authorized_key:
-    user: "{{ ansible_admin_user }}"
-    key: "{{ lookup('file', (ansible_admin_key_path | expanduser) ~ '.pub') }}"
+    user: "{{ bootstrap_user_name }}"
+    key: "{{ lookup('file', (bootstrap_user_key_file | expanduser) ~ '.pub') }}"
     state: present
     manage_dir: true
 
 - name: Allow passwordless sudo for Ansible automation user
   ansible.builtin.copy:
-    dest: "/etc/sudoers.d/{{ ansible_admin_user }}"
-    content: "{{ ansible_admin_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    dest: "/etc/sudoers.d/{{ bootstrap_user_name }}"
+    content: "{{ bootstrap_user_name }} ALL=(ALL) NOPASSWD:ALL\n"
     owner: root
     group: root
     mode: "0440"

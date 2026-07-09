@@ -16,50 +16,50 @@
 
 - name: Check whether a server private key already exists
   ansible.builtin.stat:
-    path: "{{ wireguard_private_key_path }}"
-  register: wireguard_privkey_stat
+    path: "{{ wireguard_private_key_file }}"
+  register: wireguard_private_key_stat
 
 - name: Generate server private key
   ansible.builtin.command: wg genkey
   register: wireguard_genkey
   changed_when: true
   no_log: true
-  when: not wireguard_privkey_stat.stat.exists
+  when: not wireguard_private_key_stat.stat.exists
 
 - name: Persist server private key
   ansible.builtin.copy:
     content: "{{ wireguard_genkey.stdout }}\n"
-    dest: "{{ wireguard_private_key_path }}"
+    dest: "{{ wireguard_private_key_file }}"
     owner: root
     group: root
     mode: "0600"
   no_log: true
-  when: not wireguard_privkey_stat.stat.exists
+  when: not wireguard_private_key_stat.stat.exists
 
 - name: Read server private key
   ansible.builtin.slurp:
-    src: "{{ wireguard_private_key_path }}"
-  register: wireguard_privkey_slurp
+    src: "{{ wireguard_private_key_file }}"
+  register: wireguard_private_key_slurp
   no_log: true
 
 - name: Set server private key fact
   ansible.builtin.set_fact:
-    wireguard_server_private_key: "{{ wireguard_privkey_slurp.content | b64decode | trim }}"
+    wireguard_server_private_key: "{{ wireguard_private_key_slurp.content | b64decode | trim }}"
   no_log: true
 
 - name: Derive server public key
   ansible.builtin.command: wg pubkey
   args:
     stdin: "{{ wireguard_server_private_key }}"
-  register: wireguard_pubkey_result
+  register: wireguard_public_key_result
   changed_when: false
   check_mode: false
   no_log: true
 
 - name: Persist server public key (convenience copy, not secret)
   ansible.builtin.copy:
-    content: "{{ wireguard_pubkey_result.stdout }}\n"
-    dest: "{{ wireguard_public_key_path }}"
+    content: "{{ wireguard_public_key_result.stdout }}\n"
+    dest: "{{ wireguard_public_key_file }}"
     owner: root
     group: root
     mode: "0644"
@@ -78,7 +78,7 @@
 - name: Deploy wg0.conf
   ansible.builtin.template:
     src: wg0.conf.j2
-    dest: "{{ wireguard_config_path }}"
+    dest: "{{ wireguard_config_file }}"
     owner: root
     group: root
     mode: "0600"
@@ -97,7 +97,7 @@
       ============================================================
       WireGuard server public key (paste into every client's [Peer] PublicKey):
 
-      {{ wireguard_pubkey_result.stdout }}
+      {{ wireguard_public_key_result.stdout }}
 
       Endpoint = <your static IP or DDNS hostname>:{{ wireguard_listen_port }}
       (never committed to this repo)

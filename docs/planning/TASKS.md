@@ -10,6 +10,13 @@ lives in git.
 
 ## Now
 
+- **Standardize variable naming** — retire the reserved `ansible_admin_*` prefix
+  (→ `bootstrap_user_*`), move the two shared flux vars to the `flux_` namespace
+  (`flux_repo_url`, `flux_deploy_key_file`), unify `_file` over `_path` for file paths
+  (wireguard), fix abbreviation drift in registers (`privkey`/`pubkey`/`flux_ks`/`flux_key_tmp`),
+  rename `samba_force_user`/`_group` → `samba_force_uid`/`_gid`, and record the naming standard
+  in CLAUDE.md. Behavior-neutral: no values or on-disk paths change.
+
 ## Next
 
 ## Someday

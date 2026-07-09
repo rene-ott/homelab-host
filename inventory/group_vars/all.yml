@@ -4,6 +4,6 @@
 
 homelab_local_ssh_key_dir: "~/.homelab-secrets/ssh"
 
-ansible_admin_user: ansible
-ansible_admin_key_path: "{{ homelab_local_ssh_key_dir }}/ansible"
-ansible_admin_sudo_group: sudo
+bootstrap_user_name: ansible
+bootstrap_user_key_file: "{{ homelab_local_ssh_key_dir }}/ansible"
+bootstrap_user_sudo_group: sudo

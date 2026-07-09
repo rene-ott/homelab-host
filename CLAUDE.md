@@ -73,6 +73,27 @@ AI-attribution trailer.
 9. **`security` and `firewall` are mandatory.** They are not toggleable.
 10. **Every other `site.yml` role is toggleable per host.** Each toggleable role has `<role>_enabled` in its own `defaults/main.yml`, defaulting to `true`.
 
+## Variable Naming
+
+1. **Public role vars**: `<role>_<noun>` (`wireguard_peers`, `samba_shares`). Vars shared by the
+   two flux roles use the shared `flux_` namespace (`flux_repo_url`, `flux_deploy_key_file`).
+2. **Never the `ansible_` prefix** for custom vars — it is reserved for Ansible's own
+   facts/connection/magic vars.
+3. **Cross-role globals**: unprefixed only when genuinely global and defined in
+   `inventory/group_vars/homelab/vars.yml` (`ssh_port`, `apt_cache_valid_time`). Do not add more casually.
+4. **Booleans**: `<role>_enabled`; CLI safety gates may use `<action>_confirm`.
+5. **Registered vars**: `<role>_<subject>_<kind>` where kind describes the result — `_stat`,
+   `_check` (probe judged by rc), `_result`, `_slurp` — or a bare command mirror when it names
+   the tool (`wireguard_show`, `flux_check`, `samba_testparm`).
+6. **Facts (`set_fact`)**: role prefix + precise noun (`samba_force_user_name`).
+7. **Files/dirs**: `_file` for file paths, `_dir`/`_dirs` for directories; no bare `_path`.
+8. **Lists**: plural nouns (`_ports`, `_peers`, `_shares`, `_dirs`); structured item keys mirror
+   the config format they template (`public_key`, `allowed_ips`).
+9. **Service/package config vars** mirror the target config directive or module param name
+   (`samba_create_mask`, `security_fail2ban_bantime`, `storage_owner`).
+10. **Abbreviations**: only `dir`, `tmp`, `ns`, `uid`/`gid`, `url`, `port`; never `privkey`,
+    `pubkey`, `ks`.
+
 ## Role Map
 
 | Role | Concern | Toggle |

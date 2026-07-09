@@ -21,8 +21,8 @@
     database: "{{ item.db }}"
     key: "{{ item.id }}"
   loop:
-    - { db: passwd, id: "{{ samba_force_user }}" }
-    - { db: group, id: "{{ samba_force_group }}" }
+    - { db: passwd, id: "{{ samba_force_uid }}" }
+    - { db: group, id: "{{ samba_force_gid }}" }
   loop_control:
     label: "{{ item.db }} {{ item.id }}"
 
