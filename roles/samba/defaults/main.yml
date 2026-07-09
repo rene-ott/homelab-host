@@ -15,11 +15,13 @@ samba_shares:
 samba_workgroup: WORKGROUP
 samba_server_string: "%h media server"
 
-# Must match storage_owner/storage_group in roles/storage/defaults/main.yml (1000:1000).
-# Numeric by design (hence _uid/_gid); tasks/main.yml resolves them to names via getent, since
-# smb.conf's force user/force group require a resolvable account name, not a raw UID/GID.
-samba_force_uid: 1000
-samba_force_gid: 1000
+# Inherited from storage_owner/storage_group (roles/storage/defaults/main.yml) so share
+# ownership can never drift from the directories storage creates — samba already requires
+# storage_enabled. Numeric by design (hence _uid/_gid); tasks/main.yml resolves them to names
+# via getent, since smb.conf's force user/force group require a resolvable account name, not
+# a raw UID/GID.
+samba_force_uid: "{{ storage_owner }}"
+samba_force_gid: "{{ storage_group }}"
 
 samba_create_mask: "0664"
 samba_directory_mask: "0775"

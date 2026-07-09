@@ -106,7 +106,7 @@ AI-attribution trailer.
 | `storage` | Shared host directory roots under `/srv` | `storage_enabled` |
 | `samba` | Guest read-write SMB shares for media/misc | `samba_enabled`, requires `storage_enabled` |
 | `k3s` | K3s platform install and node readiness | `k3s_enabled` |
-| `flux_auth` | Flux deploy-key checks and GitHub registration pause | `flux_auth_enabled`, requires `k3s_enabled` |
+| `flux_preflight` | Flux deploy-key checks and GitHub registration pause | `flux_preflight_enabled`, requires `k3s_enabled` |
 | `flux_bootstrap` | Flux bootstrap and SOPS age Secret injection | `flux_bootstrap_enabled`, requires `k3s_enabled` |
 
 `site.yml` and `verify.yml` must gate toggleable roles with:
@@ -115,7 +115,7 @@ AI-attribution trailer.
 when: <role>_enabled | default(true) | bool
 ```
 
-`flux_auth` and `flux_bootstrap` require `k3s_enabled: true`. `samba` requires `storage_enabled: true`.
+`flux_preflight` and `flux_bootstrap` require `k3s_enabled: true`. `samba` requires `storage_enabled: true`.
 Both top-level dependency validation and role-local guards should fail fast for inconsistent
 combinations, including tag-scoped runs.
 
@@ -132,7 +132,7 @@ combinations, including tag-scoped runs.
 5. `storage`
 6. `samba`
 7. `k3s`
-8. `flux_auth`
+8. `flux_preflight`
 9. `flux_bootstrap`
 
 `playbooks/verify.yml` is read-only and should report `changed=0` on a healthy system.

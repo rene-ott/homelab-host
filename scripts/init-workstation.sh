@@ -115,7 +115,7 @@ elif ask; then
   ssh-keygen -t ed25519 -C "homelab/flux-deploy" -f "${FLUX_KEY}" -N ""
   ok "generated"
 else
-  warn "skipped — flux_auth role will fail without it"
+  warn "skipped — flux_preflight role will fail without it"
 fi
 
 # ── Step 5: SOPS age key ─────────────────────────────────────────────────────

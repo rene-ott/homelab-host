@@ -91,6 +91,8 @@
     state: started
     enabled: true
 
+# Per host (no run_once) — each host has its own keypair, so a multi-host run must print
+# every host's key, not just the first one's.
 - name: Display WireGuard server public key
   ansible.builtin.debug:
     msg: |
@@ -108,4 +110,3 @@
       inventory/group_vars/homelab/vars.yml and re-run:
         ansible-playbook playbooks/site.yml --tags wireguard
       ============================================================
-  run_once: true

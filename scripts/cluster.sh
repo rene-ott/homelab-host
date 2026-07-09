@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Interactive entry point for K3s/Flux cluster actions. Loops, prompting for one of:
-#   1) bootstrap - site.yml --tags k3s,flux_auth,flux_bootstrap (install/reconcile the cluster)
+#   1) bootstrap - site.yml --tags k3s,flux_preflight,flux_bootstrap (install/reconcile the cluster)
 #   2) teardown  - teardown-k3s.yml (destructive; prompts for its own confirmation)
 #   3) verify    - verify.yml --tags k3s,flux_bootstrap (read-only health check)
 #   4) exit
@@ -20,8 +20,8 @@ while true; do
   case "${choice}" in
     1)
       echo
-      echo "Running ansible site (tags: k3s, flux_auth, flux_bootstrap)"
-      ansible-playbook playbooks/site.yml --tags k3s,flux_auth,flux_bootstrap
+      echo "Running ansible site (tags: k3s, flux_preflight, flux_bootstrap)"
+      ansible-playbook playbooks/site.yml --tags k3s,flux_preflight,flux_bootstrap
       ;;
     2)
       read -rp "This will delete the K3s cluster, its data, and its certs. Continue? [y/N]: " confirm

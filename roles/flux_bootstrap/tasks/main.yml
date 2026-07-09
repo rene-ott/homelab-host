@@ -6,8 +6,24 @@
   ansible.builtin.assert:
     that: k3s_enabled | default(true) | bool
     fail_msg: >-
-      flux_bootstrap requires K3s — set k3s_enabled: true or disable flux_auth_enabled/
+      flux_bootstrap requires K3s — set k3s_enabled: true or disable flux_preflight_enabled/
       flux_bootstrap_enabled too.
+
+# Validate before mutating: a missing age key must abort the role before the flux CLI
+# download/install changes the host.
+- name: Fail if SOPS Age key is missing
+  ansible.builtin.assert:
+    that: flux_bootstrap_sops_age_key_file is file
+    fail_msg: |
+      Missing SOPS age key:
+
+        {{ flux_bootstrap_sops_age_key_file }}
+
+      Generate it by running:
+        ./scripts/init-workstation.sh
+  delegate_to: localhost
+  run_once: true
+  become: false
 
 - name: Check whether the flux CLI is already installed
   ansible.builtin.stat:
@@ -28,27 +44,15 @@
     remote_src: true
     creates: /usr/local/bin/flux
 
-# Duplicated (identically) in flux_auth rather than reusing its registered var, so this role
-# still works when run standalone via `--tags flux_bootstrap` (flux_auth need not have run).
+# Duplicated (identically) in flux_preflight rather than reusing its registered var, so this role
+# still works when run standalone via `--tags flux_bootstrap` (flux_preflight need not have run).
 - name: Check if flux-system namespace exists
   ansible.builtin.command: k3s kubectl get namespace flux-system
   register: flux_bootstrap_ns_check
   failed_when: false
   changed_when: false
-
-- name: Fail if SOPS Age key is missing
-  ansible.builtin.assert:
-    that: flux_bootstrap_sops_age_key_file is file
-    fail_msg: |
-      Missing SOPS age key:
-
-        {{ flux_bootstrap_sops_age_key_file }}
-
-      Generate it by running:
-        ./scripts/init-workstation.sh
-  delegate_to: localhost
-  run_once: true
-  become: false
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
 - name: Create flux-system namespace
   when: flux_bootstrap_ns_check.rc != 0

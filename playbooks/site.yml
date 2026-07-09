@@ -17,7 +17,7 @@
     - name: Validate role toggle dependencies
       ansible.builtin.assert:
         that:
-          - not (flux_auth_enabled | default(true) | bool) or (k3s_enabled | default(true) | bool)
+          - not (flux_preflight_enabled | default(true) | bool) or (k3s_enabled | default(true) | bool)
           - not (flux_bootstrap_enabled | default(true) | bool) or (k3s_enabled | default(true) | bool)
           - not (samba_enabled | default(true) | bool) or (storage_enabled | default(true) | bool)
         fail_msg: >-
@@ -52,9 +52,9 @@
       tags: [k3s]
       when: k3s_enabled | default(true) | bool
 
-    - role: flux_auth
-      tags: [flux_auth]
-      when: flux_auth_enabled | default(true) | bool
+    - role: flux_preflight
+      tags: [flux_preflight]
+      when: flux_preflight_enabled | default(true) | bool
 
     - role: flux_bootstrap
       tags: [flux_bootstrap]

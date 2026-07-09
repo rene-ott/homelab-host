@@ -1,0 +1,32 @@
+---
+# Read-only health checks for firewall. Run via playbooks/verify.yml (--tags firewall).
+# Every task asserts via failed_when/assert and never mutates (changed_when: false).
+- name: Query ufw status
+  ansible.builtin.command: ufw status verbose
+  register: firewall_ufw_status
+  changed_when: false
+
+- name: Verify ufw is active with default-deny incoming
+  ansible.builtin.assert:
+    that:
+      - "'Status: active' in firewall_ufw_status.stdout"
+      - "'deny (incoming)' in firewall_ufw_status.stdout"
+    fail_msg: >-
+      ufw is not active with a default-deny incoming policy — re-run:
+      ansible-playbook playbooks/site.yml --tags firewall
+
+- name: Verify every declared TCP port is allowed
+  ansible.builtin.assert:
+    that: firewall_ufw_status.stdout is search('^' ~ (item | string) ~ '/tcp\s+ALLOW', multiline=True)
+    fail_msg: >-
+      TCP port {{ item }} is declared in firewall_allowed_tcp_ports but not allowed in ufw —
+      re-run: ansible-playbook playbooks/site.yml --tags firewall
+  loop: "{{ firewall_allowed_tcp_ports }}"
+
+- name: Verify every declared UDP port is allowed
+  ansible.builtin.assert:
+    that: firewall_ufw_status.stdout is search('^' ~ (item | string) ~ '/udp\s+ALLOW', multiline=True)
+    fail_msg: >-
+      UDP port {{ item }} is declared in firewall_allowed_udp_ports but not allowed in ufw —
+      re-run: ansible-playbook playbooks/site.yml --tags firewall
+  loop: "{{ firewall_allowed_udp_ports }}"

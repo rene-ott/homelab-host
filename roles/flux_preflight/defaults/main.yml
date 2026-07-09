@@ -1,5 +1,5 @@
 ---
 # Per-host toggle — set to false in a host's inventory/host_vars/<hostname>.yml to skip this
 # role entirely (see playbooks/site.yml). Requires k3s_enabled: true (see
-# roles/k3s/defaults/main.yml) — Flux auth assumes a running K3s cluster.
-flux_auth_enabled: true
+# roles/k3s/defaults/main.yml) — Flux preflight assumes a running K3s cluster.
+flux_preflight_enabled: true

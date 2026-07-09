@@ -7,14 +7,27 @@
 # Each role owns its checks in roles/<role>/tasks/verify.yml.
 #
 # import_role (static) is used so --list-tasks expands the inner checks and tags on the
-# import propagate to every imported task (so --tags cockpit / --tags k3s select). Each check
-# is gated by the same <role>_enabled toggle used in site.yml (default true; see each role's
-# defaults/main.yml) — a disabled role is skipped here too.
+# import propagate to every imported task (so --tags cockpit / --tags k3s select). Each
+# toggleable role's check is gated by the same <role>_enabled toggle used in site.yml (default
+# true; see each role's defaults/main.yml) — a disabled role is skipped here too. security and
+# firewall are mandatory (no toggle), so their checks always run.
 - name: Verify homelab services are healthy
   hosts: homelab
   become: true
 
   tasks:
+    - name: Verify security
+      ansible.builtin.import_role:
+        name: security
+        tasks_from: verify
+      tags: [verify, security]
+
+    - name: Verify firewall
+      ansible.builtin.import_role:
+        name: firewall
+        tasks_from: verify
+      tags: [verify, firewall]
+
     - name: Verify wireguard
       ansible.builtin.import_role:
         name: wireguard

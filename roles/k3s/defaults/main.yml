@@ -1,6 +1,6 @@
 ---
 # Per-host toggle — set to false in a host's inventory/host_vars/<hostname>.yml to skip this
-# role entirely (see playbooks/site.yml). Note: flux_auth/flux_bootstrap depend on k3s —
+# role entirely (see playbooks/site.yml). Note: flux_preflight/flux_bootstrap depend on k3s —
 # disabling k3s while either is enabled fails the dependency guards in both playbooks/site.yml
-# and roles/flux_auth|flux_bootstrap/tasks/main.yml.
+# and roles/flux_preflight|flux_bootstrap/tasks/main.yml.
 k3s_enabled: true

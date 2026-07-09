@@ -58,7 +58,7 @@ storage_root_dirs:
 # Version pinned here so it is visible in one place alongside the other env-specific vars.
 k3s_version: "v1.31.4+k3s1"
 
-# --- Flux bootstrap (roles: flux_auth, flux_bootstrap) ---
+# --- Flux bootstrap (roles: flux_preflight, flux_bootstrap) ---
 # The cluster path is per-environment and lives in group_vars/prod.yml and group_vars/staging.yml
 # (deliberately no homelab-wide default, so a host in neither group fails fast rather than silently
 # bootstrapping the prod path). Repo, deploy key, and age key are shared across environments.

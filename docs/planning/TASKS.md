@@ -10,12 +10,12 @@ lives in git.
 
 ## Now
 
-- **Standardize variable naming** — retire the reserved `ansible_admin_*` prefix
-  (→ `bootstrap_user_*`), move the two shared flux vars to the `flux_` namespace
-  (`flux_repo_url`, `flux_deploy_key_file`), unify `_file` over `_path` for file paths
-  (wireguard), fix abbreviation drift in registers (`privkey`/`pubkey`/`flux_ks`/`flux_key_tmp`),
-  rename `samba_force_user`/`_group` → `samba_force_uid`/`_gid`, and record the naming standard
-  in CLAUDE.md. Behavior-neutral: no values or on-disk paths change.
+- **Architecture-review follow-ups** — add `tasks/verify.yml` for the mandatory `security` and
+  `firewall` roles and wire them into `playbooks/verify.yml`; hoist the SOPS age-key assert to
+  the top of `flux_bootstrap` (validate before mutate) and align its namespace check's
+  `KUBECONFIG`; derive `samba_force_uid`/`_gid` from `storage_owner`/`storage_group`; rename
+  `flux_preflight` (was `flux_auth`) — role dir, toggle, registers, docs; drop `run_once` from
+  the WireGuard public-key display so each host prints its own key.
 
 ## Next
 

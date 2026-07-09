@@ -54,7 +54,7 @@ ansible-playbook playbooks/site.yml
 
 ```bash
 ansible-playbook playbooks/site.yml --tags k3s
-ansible-playbook playbooks/site.yml --tags flux_auth       # prints deploy public key
+ansible-playbook playbooks/site.yml --tags flux_preflight       # prints deploy public key
 ansible-playbook playbooks/site.yml --tags flux_bootstrap
 ```
 

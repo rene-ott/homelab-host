@@ -1,0 +1,32 @@
+---
+# Read-only health checks for security. Run via playbooks/verify.yml (--tags security).
+# Every task asserts via failed_when and never mutates (changed_when: false).
+- name: Verify sshd is active and enabled
+  ansible.builtin.systemd:
+    name: ssh
+  register: security_sshd
+  changed_when: false
+  failed_when: >
+    security_sshd.status.ActiveState != 'active'
+    or security_sshd.status.UnitFileState != 'enabled'
+
+- name: Verify the SSH hardening drop-in is present
+  ansible.builtin.stat:
+    path: /etc/ssh/sshd_config.d/99-hardening.conf
+  register: security_hardening_stat
+  failed_when: not security_hardening_stat.stat.exists
+
+- name: Verify fail2ban is active and enabled
+  ansible.builtin.systemd:
+    name: fail2ban
+  register: security_fail2ban
+  changed_when: false
+  failed_when: >
+    security_fail2ban.status.ActiveState != 'active'
+    or security_fail2ban.status.UnitFileState != 'enabled'
+
+- name: Verify the unattended-upgrades config is present
+  ansible.builtin.stat:
+    path: /etc/apt/apt.conf.d/20auto-upgrades
+  register: security_auto_upgrades_stat
+  failed_when: not security_auto_upgrades_stat.stat.exists
