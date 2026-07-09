@@ -10,9 +10,23 @@ lives in git.
 
 ## Now
 
+- **Add a staging cluster** — second host `atlas-stg` → `clusters/core-stg`, alongside prod `atlas`
+  → `clusters/core`. Nested `prod`/`staging` groups under `homelab`; per-environment
+  `flux_bootstrap_path` in `group_vars/prod.yml` and `group_vars/staging.yml` (no homelab-wide
+  default). `init-workstation.sh` now writes both SSH aliases. Inventory/vars/script/docs done;
+  end-to-end bootstrap (`bootstrap-user.yml` → `site.yml --limit staging` → `verify.yml`) pending a
+  real staging machine.
+
 ## Next
 
 ## Someday
+
+- **Redesign `~/.homelab-secrets/` and `~/.homelab-backups/` folder structure** to be more
+  role-oriented, given roles are enabled per-host on a role basis (multihost context).
+- **Rewrite the Ansible code to match** the redesigned secrets/backups folder structure.
+- **Consolidate the `scripts/*.sh` helpers** — merge overlapping scripts and define shared constants
+  / library paths in one place, done with multihost in mind (`REMOTE_HOST` is currently hardcoded to
+  `atlas` in the backup scripts; the SSH-alias helper in `init-workstation.sh` is a first step).
 
 - **Onboard a real second host** once one exists — no hostname/machine to provision yet. Add it
   to `inventory/hosts.yml`/`inventory/bootstrap.yml`, write its `inventory/host_vars/<hostname>.yml`

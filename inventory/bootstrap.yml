@@ -8,3 +8,5 @@ all:
       hosts:
         atlas:
           ansible_become: true
+        atlas-stg:
+          ansible_become: true

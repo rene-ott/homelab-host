@@ -120,18 +120,24 @@ combinations, including tag-scoped runs.
 
 A human admin user is created during Debian install. Before touching the server, run
 `scripts/init-workstation.sh` on the workstation. It creates `~/.homelab-secrets/`, generates the
-Ansible SSH key, Flux deploy key, and SOPS age key, and writes the SSH alias.
+Ansible SSH key, Flux deploy key, and SOPS age key, and writes the SSH aliases (`atlas`, `atlas-stg`).
 
-First server run:
+Two environments share this inventory: `atlas` (prod → `clusters/core`) and `atlas-stg`
+(staging → `clusters/core-stg`). They differ only by `flux_bootstrap_path`; the nested `prod` /
+`staging` groups under `homelab` carry that delta. Normal runs must target one environment with
+`--limit` (`prod`/`staging`, or a host name) — a no-limit run hits both hosts. It is idempotent
+(Flux bootstrap is namespace-gated) but a change intended for staging could then also touch prod.
+
+First server run (per host):
 
 ```bash
-ansible-playbook playbooks/bootstrap-user.yml -i inventory/bootstrap.yml -u <admin> --ask-pass --ask-become-pass
+ansible-playbook playbooks/bootstrap-user.yml -i inventory/bootstrap.yml --limit atlas -u <admin> --ask-pass --ask-become-pass
 ```
 
-Every later run:
+Every later run (per environment):
 
 ```bash
-ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/site.yml --limit prod       # or: --limit staging
 ```
 
 The `ansible` user must use key-only SSH and passwordless sudo. Keep the human admin as a break-glass
@@ -205,7 +211,10 @@ Do not make these automatic unless explicitly asked.
 | File | Scope |
 |------|-------|
 | `inventory/group_vars/all.yml` | bootstrap/access vars and local key paths |
-| `inventory/group_vars/homelab/vars.yml` | non-secret operational vars: ports, WireGuard, storage, K3s, Flux |
+| `inventory/group_vars/homelab/vars.yml` | shared connection + non-secret operational vars: ports, WireGuard, storage, K3s, Flux |
+| `inventory/group_vars/prod.yml` | production environment delta (`atlas`): `flux_bootstrap_path: clusters/core` |
+| `inventory/group_vars/staging.yml` | staging environment delta (`atlas-stg`): `flux_bootstrap_path: clusters/core-stg` |
+| `inventory/host_vars/<host>.yml` | per-host overrides (e.g. a single host's `<role>_enabled: false`); none needed today |
 | `inventory/group_vars/homelab/secrets.sops.yml.example` | inactive documentation for a possible future inventory-SOPS path |
 
 No `.env`, no `lookup('env', ...)`, and no inactive speculative variables.

@@ -3,6 +3,12 @@
 # Secrets are NOT here (see secrets.sops.yml.example); they remain as workstation files and
 # SOPS-encrypted manifests in the homelab-cluster repo.
 
+# --- connection (shared by every homelab host; bootstrap.yml hosts are outside this group and
+#     connect as the install-time admin via -u/--ask-pass instead) ---
+# Privilege escalation is set at play level (become: true in site.yml/verify.yml), not here.
+ansible_user: "{{ ansible_admin_user }}"
+ansible_ssh_private_key_file: "{{ ansible_admin_key_path }}"
+
 # --- base OS / apt ---
 ssh_port: 22
 apt_cache_valid_time: 3600
@@ -53,8 +59,10 @@ storage_root_dirs:
 k3s_version: "v1.31.4+k3s1"
 
 # --- Flux bootstrap (roles: flux_auth, flux_bootstrap) ---
+# The cluster path is per-environment and lives in group_vars/prod.yml and group_vars/staging.yml
+# (deliberately no homelab-wide default, so a host in neither group fails fast rather than silently
+# bootstrapping the prod path). Repo, deploy key, and age key are shared across environments.
 flux_bootstrap_version: "2.4.0"
 flux_bootstrap_ssh_url: ssh://git@github.com/rene-ott/homelab-cluster
-flux_bootstrap_path: clusters/core
 flux_auth_bootstrap_ssh_key_file: "{{ homelab_local_ssh_key_dir }}/flux-deploy"
 flux_bootstrap_sops_age_key_file: "{{ '~/.homelab-secrets/age/homelab.agekey' | expanduser }}"

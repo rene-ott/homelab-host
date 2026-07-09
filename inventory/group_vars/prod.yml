@@ -1,0 +1,3 @@
+---
+# Production environment delta (host: atlas). Everything else is inherited from group_vars/homelab.
+flux_bootstrap_path: clusters/core

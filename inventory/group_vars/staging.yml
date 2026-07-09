@@ -1,0 +1,5 @@
+---
+# Staging environment delta (host: atlas-stg). Targets the core-stg cluster path in the same
+# homelab-cluster repo — same branch (main), same deploy key, same age key as prod; only the Flux
+# path differs. Add staging-only role trims here if needed (e.g. wireguard_enabled: false).
+flux_bootstrap_path: clusters/core-stg

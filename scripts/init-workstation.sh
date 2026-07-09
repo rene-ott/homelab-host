@@ -17,36 +17,71 @@ warn() { printf '    ! %s\n' "$*" >&2; }
 step() { printf '\nStep %s: %s\n' "$1" "$2"; }
 ask()  { local ans; read -rp "    Generate? [y/N]: " ans; [[ "${ans,,}" == "y" ]]; }
 
+# Print the HostName configured for a given Host alias in ${SSH_CONFIG}, or nothing. Parses per
+# alias (a naive grep would return the first block's HostName for every host).
+existing_hostname() {
+  [[ -f "${SSH_CONFIG}" ]] || return 0
+  awk -v want="$1" '
+    $1 == "Host"     { current = ($2 == want) }
+    current && $1 == "HostName" { print $2; exit }
+  ' "${SSH_CONFIG}"
+}
+
+# Append a Host block for <alias> -> <address> to ${SSH_CONFIG} (all homelab hosts use the same
+# ansible user and key).
+write_ssh_alias() {
+  cat >> "${SSH_CONFIG}" <<EOF
+Host $1
+  HostName $2
+  User ansible
+  IdentityFile ~/.homelab-secrets/ssh/ansible
+EOF
+}
+
 # ── Step 1: directory tree ────────────────────────────────────────────────────
 step 1 "Create directory structure"
 mkdir -p "${SSH_DIR}" "${AGE_DIR}" "${BACKUP_DIR}"
 chmod 700 "${SECRETS_DIR}" "${SSH_DIR}" "${AGE_DIR}" "${BACKUP_DIR}"
 ok "~/.homelab-secrets/{ssh,age} and ~/.homelab-backups ready"
 
-# ── Step 2: SSH alias ─────────────────────────────────────────────────────────
-step 2 "SSH alias  (~/.homelab-secrets/ssh/config)"
-existing_addr=""
-if [[ -f "${SSH_CONFIG}" ]]; then
-  existing_addr="$(grep -m1 'HostName' "${SSH_CONFIG}" | awk '{print $2}')"
-fi
+# ── Step 2: SSH aliases ───────────────────────────────────────────────────────
+# This file is fully script-owned, so it is regenerated from scratch each run. atlas (prod) is
+# required; atlas-stg (staging) is optional. Existing addresses are kept unless overridden.
+step 2 "SSH aliases  (~/.homelab-secrets/ssh/config)"
+prod_existing="$(existing_hostname atlas)"
+stg_existing="$(existing_hostname atlas-stg)"
 
-if [[ -n "${existing_addr}" ]]; then
-  read -rp "    Server IP or DNS name (current: ${existing_addr}, leave empty to keep): " server_addr
+if [[ -n "${prod_existing}" ]]; then
+  read -rp "    atlas (prod) IP or DNS name (current: ${prod_existing}, leave empty to keep): " prod_addr
 else
-  read -rp "    Server IP or DNS name: " server_addr
+  read -rp "    atlas (prod) IP or DNS name: " prod_addr
 fi
-server_addr="${server_addr:-${existing_addr}}"
+prod_addr="${prod_addr:-${prod_existing}}"
 
-if [[ -n "${server_addr}" ]]; then
-  cat > "${SSH_CONFIG}" <<EOF
-Host atlas
-  HostName ${server_addr}
-  User ansible
-  IdentityFile ~/.homelab-secrets/ssh/ansible
-EOF
-  chmod 600 "${SSH_CONFIG}"
-  ok "written (${server_addr})"
+if [[ -n "${stg_existing}" ]]; then
+  read -rp "    atlas-stg (staging) IP or DNS name (current: ${stg_existing}, empty to keep, '-' to remove): " stg_addr
+else
+  read -rp "    atlas-stg (staging) IP or DNS name (optional, leave empty to skip): " stg_addr
+fi
+stg_addr="${stg_addr:-${stg_existing}}"
+[[ "${stg_addr}" == "-" ]] && stg_addr=""
 
+: > "${SSH_CONFIG}"
+chmod 600 "${SSH_CONFIG}"
+if [[ -n "${prod_addr}" ]]; then
+  write_ssh_alias atlas "${prod_addr}"
+  ok "atlas -> ${prod_addr}"
+else
+  warn "no atlas address — prod SSH alias not written; bootstrap-user.yml will fail"
+fi
+if [[ -n "${stg_addr}" ]]; then
+  write_ssh_alias atlas-stg "${stg_addr}"
+  ok "atlas-stg -> ${stg_addr}"
+else
+  ok "atlas-stg not configured (staging skipped)"
+fi
+
+if [[ -s "${SSH_CONFIG}" ]]; then
   GLOBAL_SSH="${HOME}/.ssh/config"
   INCLUDE="Include ~/.homelab-secrets/ssh/config"
   mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
@@ -59,8 +94,6 @@ EOF
     chmod 600 "${GLOBAL_SSH}"
     ok "Include added to ~/.ssh/config"
   fi
-else
-  warn "no server address — SSH alias not written; bootstrap-user.yml will fail"
 fi
 
 # ── Step 3: ansible SSH key ───────────────────────────────────────────────────
