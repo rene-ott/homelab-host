@@ -6,7 +6,7 @@
     owner: root
     group: root
     mode: "0644"
-  notify: Restart sshd
+  notify: Restart ssh
 
 - name: Install security packages
   ansible.builtin.apt:

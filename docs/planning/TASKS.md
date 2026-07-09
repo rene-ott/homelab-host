@@ -10,13 +10,6 @@ lives in git.
 
 ## Now
 
-- **Architecture-review follow-ups** — add `tasks/verify.yml` for the mandatory `security` and
-  `firewall` roles and wire them into `playbooks/verify.yml`; hoist the SOPS age-key assert to
-  the top of `flux_bootstrap` (validate before mutate) and align its namespace check's
-  `KUBECONFIG`; derive `samba_force_uid`/`_gid` from `storage_owner`/`storage_group`; rename
-  `flux_preflight` (was `flux_auth`) — role dir, toggle, registers, docs; drop `run_once` from
-  the WireGuard public-key display so each host prints its own key.
-
 ## Next
 
 ## Someday
@@ -27,6 +20,8 @@ lives in git.
 - **Consolidate the `scripts/*.sh` helpers** — merge overlapping scripts and define shared constants
   / library paths in one place, done with multihost in mind (`REMOTE_HOST` is currently hardcoded to
   `atlas` in the backup scripts; the SSH-alias helper in `init-workstation.sh` is a first step).
+  Also fix `quick-deploy.sh`: it runs `site.yml`/`verify.yml` with no `--limit`, which hits both
+  environments — normal runs must target one (`prod`/`staging`).
 
 - **Onboard a real second host** once one exists — no hostname/machine to provision yet. Add it
   to `inventory/hosts.yml`/`inventory/bootstrap.yml`, write its `inventory/host_vars/<hostname>.yml`

@@ -7,7 +7,9 @@
 # inventory/host_vars/<hostname>.yml to skip that role entirely — the when: below applies to
 # every task the role owns, including any assert/fail-fast guards inside it. security/firewall
 # have no toggle and always run. The pre_tasks block below validates toggle combinations
-# (Flux requires K3s, Samba requires Storage) before any role runs.
+# (Flux requires K3s, Samba requires Storage) and workstation Flux secrets before any role
+# runs — the role-local copies of those checks remain for tag-scoped runs, which skip
+# untagged pre_tasks.
 
 - name: Configure homelab servers
   hosts: homelab
@@ -24,6 +26,36 @@
           Invalid role toggle combination: Flux requires K3s, and Samba requires Storage.
           Check this host's host_vars for an inconsistent *_enabled combination.
         success_msg: Role toggle dependencies are valid.
+
+    - name: Assert the Flux deploy key exists on the workstation
+      ansible.builtin.assert:
+        that: (flux_deploy_key_file | expanduser) is file
+        fail_msg: |
+          Flux deploy key not found: {{ flux_deploy_key_file | expanduser }}
+
+          Generate it by running:
+            ./scripts/init-workstation.sh
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task] — play strategy is the default linear
+      become: false
+      when: >-
+        (flux_preflight_enabled | default(true) | bool)
+        or (flux_bootstrap_enabled | default(true) | bool)
+
+    - name: Assert the SOPS age key exists on the workstation
+      ansible.builtin.assert:
+        that: flux_bootstrap_sops_age_key_file is file
+        fail_msg: |
+          Missing SOPS age key:
+
+            {{ flux_bootstrap_sops_age_key_file }}
+
+          Generate it by running:
+            ./scripts/init-workstation.sh
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task] — play strategy is the default linear
+      become: false
+      when: flux_bootstrap_enabled | default(true) | bool
 
   roles:
     - role: security

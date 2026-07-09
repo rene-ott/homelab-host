@@ -1,0 +1,22 @@
+---
+# Read-only health checks for storage. Run via playbooks/verify.yml (--tags storage).
+# Every task asserts and never mutates (stat is read-only).
+- name: Stat every storage root directory
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: storage_root_stat
+  loop: "{{ storage_root_dirs }}"
+
+- name: Verify every storage root exists with expected ownership
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isdir
+      - item.stat.uid == (storage_owner | int)
+      - item.stat.gid == (storage_group | int)
+    fail_msg: >-
+      Storage root {{ item.item }} is missing or has wrong ownership — re-run:
+      ansible-playbook playbooks/site.yml --tags storage
+  loop: "{{ storage_root_stat.results }}"
+  loop_control:
+    label: "{{ item.item }}"

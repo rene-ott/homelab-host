@@ -42,6 +42,13 @@
       tags: [verify, cockpit]
       when: cockpit_enabled | default(true) | bool
 
+    - name: Verify storage
+      ansible.builtin.import_role:
+        name: storage
+        tasks_from: verify
+      tags: [verify, storage]
+      when: storage_enabled | default(true) | bool
+
     - name: Verify samba
       ansible.builtin.import_role:
         name: samba

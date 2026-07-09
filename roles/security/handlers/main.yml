@@ -1,7 +1,7 @@
 ---
-- name: Restart sshd
+- name: Restart ssh
   ansible.builtin.service:
-    name: sshd
+    name: ssh  # canonical Debian unit (sshd is an alias); matches tasks/verify.yml
     state: restarted
 
 - name: Restart fail2ban
