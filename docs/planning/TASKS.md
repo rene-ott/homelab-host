@@ -20,8 +20,6 @@ lives in git.
 - **Consolidate the `scripts/*.sh` helpers** — merge overlapping scripts and define shared constants
   / library paths in one place, done with multihost in mind (`REMOTE_HOST` is currently hardcoded to
   `atlas` in the backup scripts; the SSH-alias helper in `init-workstation.sh` is a first step).
-  Also fix `quick-deploy.sh`: it runs `site.yml`/`verify.yml` with no `--limit`, which hits both
-  environments — normal runs must target one (`prod`/`staging`).
 
 - **Onboard a real second host** once one exists — no hostname/machine to provision yet. Add it
   to `inventory/hosts.yml`/`inventory/bootstrap.yml`, write its `inventory/host_vars/<hostname>.yml`
