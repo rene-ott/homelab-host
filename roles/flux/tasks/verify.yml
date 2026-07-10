@@ -1,5 +1,5 @@
 ---
-# Read-only health checks for Flux CD. Run via playbooks/verify.yml (--tags flux_bootstrap).
+# Read-only health checks for Flux CD. Run via playbooks/verify.yml (--tags flux).
 # Every task asserts via failed_when/rc and never mutates (changed_when: false).
 
 - name: Verify Flux controllers are healthy

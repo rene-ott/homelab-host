@@ -75,8 +75,7 @@ AI-attribution trailer.
 
 ## Variable Naming
 
-1. **Public role vars**: `<role>_<noun>` (`wireguard_peers`, `samba_shares`). Vars shared by the
-   two flux roles use the shared `flux_` namespace (`flux_repo_url`, `flux_deploy_key_file`).
+1. **Public role vars**: `<role>_<noun>` (`wireguard_peers`, `samba_shares`, `flux_repo_url`).
 2. **Never the `ansible_` prefix** for custom vars — it is reserved for Ansible's own
    facts/connection/magic vars.
 3. **Cross-role globals**: unprefixed only when genuinely global and defined in
@@ -106,8 +105,7 @@ AI-attribution trailer.
 | `storage` | Shared host directory roots under `/srv` | `storage_enabled` |
 | `samba` | Guest read-write SMB shares for media/misc | `samba_enabled`, requires `storage_enabled` |
 | `k3s` | K3s platform install and node readiness | `k3s_enabled` |
-| `flux_preflight` | Flux deploy-key checks and GitHub registration pause | `flux_preflight_enabled`, requires `k3s_enabled` |
-| `flux_bootstrap` | Flux bootstrap and SOPS age Secret injection | `flux_bootstrap_enabled`, requires `k3s_enabled` |
+| `flux` | Flux deploy-key preflight, Flux bootstrap, SOPS age Secret injection | `flux_enabled`, requires `k3s_enabled` |
 
 `site.yml` and `verify.yml` must gate toggleable roles with:
 
@@ -115,7 +113,7 @@ AI-attribution trailer.
 when: <role>_enabled | default(true) | bool
 ```
 
-`flux_preflight` and `flux_bootstrap` require `k3s_enabled: true`. `samba` requires `storage_enabled: true`.
+`flux` requires `k3s_enabled: true`. `samba` requires `storage_enabled: true`.
 Both top-level dependency validation and role-local guards should fail fast for inconsistent
 combinations, including tag-scoped runs.
 
@@ -132,8 +130,7 @@ combinations, including tag-scoped runs.
 5. `storage`
 6. `samba`
 7. `k3s`
-8. `flux_preflight`
-9. `flux_bootstrap`
+8. `flux`
 
 `playbooks/verify.yml` is read-only and should report `changed=0` on a healthy system.
 
@@ -144,7 +141,7 @@ A human admin user is created during Debian install. Before touching the server,
 Ansible SSH key, Flux deploy key, and SOPS age key, and writes the SSH aliases (`atlas`, `atlas-stg`).
 
 Two environments share this inventory: `atlas` (prod → `clusters/core`) and `atlas-stg`
-(staging → `clusters/core-stg`). They differ only by `flux_bootstrap_path`; the nested `prod` /
+(staging → `clusters/core-stg`). They differ only by `flux_path`; the nested `prod` /
 `staging` groups under `homelab` carry that delta. Normal runs must target one environment with
 `--limit` (`prod`/`staging`, or a host name) — a no-limit run hits both hosts. It is idempotent
 (Flux bootstrap is namespace-gated) but a change intended for staging could then also touch prod.
@@ -176,11 +173,11 @@ Important paths:
 - `~/.homelab-secrets/age/homelab.agekey`
 - `~/.homelab-secrets/wireguard/`
 
-The Flux deploy key is the only private-key carve-out: `flux_bootstrap` may stage it temporarily on
+The Flux deploy key is the only private-key carve-out: `flux` may stage it temporarily on
 the server with `0600` permissions and `no_log: true`, run `flux bootstrap git`, then delete the temp
 file in an `always` block. This carve-out does not apply to `authorized_keys`.
 
-The SOPS age private key is injected into the cluster as `flux-system/sops-age` by `flux_bootstrap`.
+The SOPS age private key is injected into the cluster as `flux-system/sops-age` by `flux`.
 Ansible should fail fast with a clear remediation message if the age key is missing.
 
 Kubernetes runtime secrets such as Cloudflare tokens live only in `homelab-cluster` as
@@ -233,8 +230,8 @@ Do not make these automatic unless explicitly asked.
 |------|-------|
 | `inventory/group_vars/all.yml` | bootstrap/access vars and local key paths |
 | `inventory/group_vars/homelab/vars.yml` | shared connection + non-secret operational vars: ports, WireGuard, storage, K3s, Flux |
-| `inventory/group_vars/prod.yml` | production environment delta (`atlas`): `flux_bootstrap_path: clusters/core` |
-| `inventory/group_vars/staging.yml` | staging environment delta (`atlas-stg`): `flux_bootstrap_path: clusters/core-stg` |
+| `inventory/group_vars/prod.yml` | production environment delta (`atlas`): `flux_path: clusters/core` |
+| `inventory/group_vars/staging.yml` | staging environment delta (`atlas-stg`): `flux_path: clusters/core-stg` |
 | `inventory/host_vars/<host>.yml` | per-host overrides (e.g. a single host's `<role>_enabled: false`); none needed today |
 | `inventory/group_vars/homelab/secrets.sops.yml.example` | inactive documentation for a possible future inventory-SOPS path |
 

@@ -1,0 +1,90 @@
+---
+# Installs the flux CLI, injects the SOPS age key, and bootstraps Flux CD once. Kubernetes app
+# manifests are not managed here — Flux reconciles them from the homelab-cluster repo.
+#
+# preflight.yml is imported statically (not included) so --list-tasks expands its checks and the
+# role's tags propagate to them. It registers flux_ns_check and flux_sops_secret_check, which
+# gate the mutating tasks below.
+- name: Run Flux preflight checks
+  ansible.builtin.import_tasks: preflight.yml
+
+- name: Check whether the flux CLI is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/flux
+  register: flux_cli_stat
+
+- name: Download flux CLI archive
+  ansible.builtin.get_url:
+    url: "https://github.com/fluxcd/flux2/releases/download/v{{ flux_version }}/flux_{{ flux_version }}_linux_amd64.tar.gz"
+    dest: "/tmp/flux_{{ flux_version }}_linux_amd64.tar.gz"
+    mode: "0644"
+  when: not flux_cli_stat.stat.exists
+
+- name: Install flux CLI
+  ansible.builtin.unarchive:
+    src: "/tmp/flux_{{ flux_version }}_linux_amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+    creates: /usr/local/bin/flux
+
+# Created ahead of `flux bootstrap` so the sops-age Secret can be applied into it first — Flux
+# must be able to decrypt SOPS-encrypted manifests on its very first reconcile.
+- name: Create flux-system namespace
+  when: flux_ns_check.rc != 0
+  ansible.builtin.command: k3s kubectl create namespace flux-system
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+- name: Inject SOPS age private key into flux-system/sops-age
+  when: flux_sops_secret_check.rc != 0
+  ansible.builtin.command:
+    cmd: k3s kubectl apply -f -
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: sops-age
+        namespace: flux-system
+      type: Opaque
+      data:
+        age.agekey: "{{ lookup('file', flux_sops_age_key_file) | b64encode }}"
+  changed_when: true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true
+
+- name: Bootstrap Flux CD with a deploy key
+  when: flux_ns_check.rc != 0
+  block:
+    - name: Create a temp file for the Flux deploy key
+      ansible.builtin.tempfile:
+        state: file
+        prefix: flux-deploy-key-
+      register: flux_deploy_key_tmp
+
+    - name: Stage the Flux deploy private key on the server
+      ansible.builtin.copy:
+        content: "{{ lookup('file', flux_deploy_key_file) }}"
+        dest: "{{ flux_deploy_key_tmp.path }}"
+        mode: "0600"
+      no_log: true
+
+    - name: Bootstrap Flux CD
+      ansible.builtin.command:
+        cmd: >
+          /usr/local/bin/flux bootstrap git
+          --url={{ flux_repo_url }}
+          --branch=main
+          --path={{ flux_path }}
+          --private-key-file={{ flux_deploy_key_tmp.path }}
+          --silent
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: true
+  always:
+    - name: Remove the staged Flux deploy key
+      ansible.builtin.file:
+        path: "{{ flux_deploy_key_tmp.path }}"
+        state: absent
+      when: flux_deploy_key_tmp.path is defined

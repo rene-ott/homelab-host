@@ -58,11 +58,11 @@ storage_root_dirs:
 # Version pinned here so it is visible in one place alongside the other env-specific vars.
 k3s_version: "v1.31.4+k3s1"
 
-# --- Flux bootstrap (roles: flux_preflight, flux_bootstrap) ---
+# --- Flux bootstrap (role: flux) ---
 # The cluster path is per-environment and lives in group_vars/prod.yml and group_vars/staging.yml
 # (deliberately no homelab-wide default, so a host in neither group fails fast rather than silently
 # bootstrapping the prod path). Repo, deploy key, and age key are shared across environments.
-flux_bootstrap_version: "2.4.0"
+flux_version: "2.4.0"
 flux_repo_url: ssh://git@github.com/rene-ott/homelab-cluster
 flux_deploy_key_file: "{{ homelab_local_ssh_key_dir }}/flux-deploy"
-flux_bootstrap_sops_age_key_file: "{{ '~/.homelab-secrets/age/homelab.agekey' | expanduser }}"
+flux_sops_age_key_file: "{{ '~/.homelab-secrets/age/homelab.agekey' | expanduser }}"

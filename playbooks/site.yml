@@ -10,6 +10,11 @@
 # (Flux requires K3s, Samba requires Storage) and workstation Flux secrets before any role
 # runs — the role-local copies of those checks remain for tag-scoped runs, which skip
 # untagged pre_tasks.
+#
+# The Flux secret asserts below are deliberately unconditional (beyond flux_enabled): they are a
+# cheap offline fail-fast before k3s installs. Their role-local counterparts in
+# roles/flux/tasks/preflight.yml are gated on cluster state instead, because there they guard a
+# specific mutation rather than the run as a whole.
 
 - name: Configure homelab servers
   hosts: homelab
@@ -19,8 +24,7 @@
     - name: Validate role toggle dependencies
       ansible.builtin.assert:
         that:
-          - not (flux_preflight_enabled | default(true) | bool) or (k3s_enabled | default(true) | bool)
-          - not (flux_bootstrap_enabled | default(true) | bool) or (k3s_enabled | default(true) | bool)
+          - not (flux_enabled | default(true) | bool) or (k3s_enabled | default(true) | bool)
           - not (samba_enabled | default(true) | bool) or (storage_enabled | default(true) | bool)
         fail_msg: >-
           Invalid role toggle combination: Flux requires K3s, and Samba requires Storage.
@@ -38,24 +42,22 @@
       delegate_to: localhost
       run_once: true  # noqa: run-once[task] — play strategy is the default linear
       become: false
-      when: >-
-        (flux_preflight_enabled | default(true) | bool)
-        or (flux_bootstrap_enabled | default(true) | bool)
+      when: flux_enabled | default(true) | bool
 
     - name: Assert the SOPS age key exists on the workstation
       ansible.builtin.assert:
-        that: flux_bootstrap_sops_age_key_file is file
+        that: flux_sops_age_key_file is file
         fail_msg: |
           Missing SOPS age key:
 
-            {{ flux_bootstrap_sops_age_key_file }}
+            {{ flux_sops_age_key_file }}
 
           Generate it by running:
             ./scripts/init-workstation.sh
       delegate_to: localhost
       run_once: true  # noqa: run-once[task] — play strategy is the default linear
       become: false
-      when: flux_bootstrap_enabled | default(true) | bool
+      when: flux_enabled | default(true) | bool
 
   roles:
     - role: security
@@ -84,10 +86,6 @@
       tags: [k3s]
       when: k3s_enabled | default(true) | bool
 
-    - role: flux_preflight
-      tags: [flux_preflight]
-      when: flux_preflight_enabled | default(true) | bool
-
-    - role: flux_bootstrap
-      tags: [flux_bootstrap]
-      when: flux_bootstrap_enabled | default(true) | bool
+    - role: flux
+      tags: [flux]
+      when: flux_enabled | default(true) | bool

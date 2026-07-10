@@ -24,7 +24,9 @@ Prompts for the server address and generates missing keys. Safe to re-run. Keys 
 ~/.homelab-secrets/age/homelab.agekey # SOPS age key
 ```
 
-After generating the age key, register its public key in `homelab-cluster` before running `flux_bootstrap`:
+The script prints the Flux deploy public key and the GitHub URL to register it at — do that before deploying, since `site.yml` asserts the key can reach the repo rather than prompting.
+
+After generating the age key, register its public key in `homelab-cluster` before bootstrapping Flux:
 
 1. Add the `age1...` public key to `.sops.yaml` in homelab-cluster (replace `AGE_PUBLIC_KEY_HERE`).
 2. Encrypt secrets and commit only the encrypted output:
@@ -54,11 +56,10 @@ ansible-playbook playbooks/site.yml
 
 ```bash
 ansible-playbook playbooks/site.yml --tags k3s
-ansible-playbook playbooks/site.yml --tags flux_preflight       # prints deploy public key
-ansible-playbook playbooks/site.yml --tags flux_bootstrap
+ansible-playbook playbooks/site.yml --tags flux
 ```
 
-Before `flux_bootstrap`: add the deploy public key to homelab-cluster's GitHub deploy keys, and register the age public key in `.sops.yaml` in homelab-cluster:
+Beforehand: add the deploy public key (printed by `init-workstation.sh`) to homelab-cluster's GitHub deploy keys with **Allow write access**, and register the age public key in `.sops.yaml` in homelab-cluster:
 
 ```bash
 SOPS_AGE_KEY_FILE=~/.homelab-secrets/age/homelab.agekey \

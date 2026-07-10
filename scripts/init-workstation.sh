@@ -11,6 +11,7 @@ SSH_CONFIG="${SSH_DIR}/config"
 AGE_KEY="${AGE_DIR}/homelab.agekey"
 ANSIBLE_KEY="${SSH_DIR}/ansible"
 FLUX_KEY="${SSH_DIR}/flux-deploy"
+FLUX_DEPLOY_KEYS_URL="https://github.com/rene-ott/homelab-cluster/settings/keys"
 
 ok()   { printf '    ✓ %s\n' "$*"; }
 warn() { printf '    ! %s\n' "$*" >&2; }
@@ -115,7 +116,7 @@ elif ask; then
   ssh-keygen -t ed25519 -C "homelab/flux-deploy" -f "${FLUX_KEY}" -N ""
   ok "generated"
 else
-  warn "skipped — flux_preflight role will fail without it"
+  warn "skipped — the flux role will fail without it"
 fi
 
 # ── Step 5: SOPS age key ─────────────────────────────────────────────────────
@@ -127,7 +128,19 @@ elif ask; then
   chmod 600 "${AGE_KEY}"
   ok "generated"
 else
-  warn "skipped — flux_bootstrap will fail without it"
+  warn "skipped — the flux role will fail without it"
+fi
+
+# ── Step 6: register the deploy key on GitHub ────────────────────────────────
+# site.yml is non-interactive: it asserts the key can reach the repo and fails with this same
+# key and URL rather than prompting. Printing here is what makes that assert actionable.
+step 6 "Register the Flux deploy key on GitHub"
+if [[ -f "${FLUX_KEY}.pub" ]]; then
+  printf '    Add this public key as a deploy key at\n      %s\n' "${FLUX_DEPLOY_KEYS_URL}"
+  printf '    Enable "Allow write access" — Flux pushes the gotk-* manifests on first bootstrap.\n\n'
+  printf '      %s\n' "$(cat "${FLUX_KEY}.pub")"
+else
+  warn "no deploy key yet — re-run this script to generate it"
 fi
 
 printf '\nDone. Run: ansible-playbook playbooks/bootstrap-user.yml -i inventory/bootstrap.yml -u <admin> --ask-pass --ask-become-pass\n'

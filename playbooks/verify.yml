@@ -3,7 +3,7 @@
 # reports failed=0 changed=0; a failure names the unhealthy service.
 #   ansible-playbook playbooks/verify.yml            # all services
 #   ansible-playbook playbooks/verify.yml --tags cockpit         # one service
-#   ansible-playbook playbooks/verify.yml --tags flux_bootstrap  # Flux checks only
+#   ansible-playbook playbooks/verify.yml --tags flux            # Flux checks only
 # Each role owns its checks in roles/<role>/tasks/verify.yml.
 #
 # import_role (static) is used so --list-tasks expands the inner checks and tags on the
@@ -63,9 +63,9 @@
       tags: [verify, k3s]
       when: k3s_enabled | default(true) | bool
 
-    - name: Verify flux_bootstrap
+    - name: Verify flux
       ansible.builtin.import_role:
-        name: flux_bootstrap
+        name: flux
         tasks_from: verify
-      tags: [verify, flux_bootstrap]
-      when: flux_bootstrap_enabled | default(true) | bool
+      tags: [verify, flux]
+      when: flux_enabled | default(true) | bool
