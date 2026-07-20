@@ -1,26 +1,23 @@
-Plan the current task. This command is intended to be run only while Claude Code is in plan mode.
+Run the **Scope** phase from the workflow contract in `CLAUDE.md`. Read-only, in
+Plan Mode. Do not edit files.
 
-Read:
+Return, for the current `## Now` item:
 
-- `CLAUDE.md`
-- `docs/planning/TASKS.md`
+1. The item (and its sub-checklist, if present) — which box is next
+2. **Classification** — `PRIMARY: refactor | new feature | bugfix | architectural | docs`
+   and `TOUCHES: <components>` (roles, inventory, scripts, CLAUDE.md, on-disk)
+3. Explicitly in-scope work
+4. Explicitly out-of-scope work, including nearby tempting work
+5. Files likely to change
+6. Safest implementation order
+7. **Verification plan** — the exact command(s) per touched component (see the
+   contract's component→recipe table). A plan with no verification section is invalid.
 
-Do not edit files.
+Then the outcome. **Prefer decompose:**
 
-Return:
-
-1. Current `## Now` task
-2. Explicitly in-scope work
-3. Explicitly out-of-scope work, including nearby tempting work
-4. Files likely to change
-5. Safest implementation order
-6. Exact verification commands
-7. Risks or decisions for the human
-
-Repo rules:
-
-- `TASKS.md` is current/future intent, not shipped history.
-- Git is shipped history.
-- Do not create `LOG.md`, changelogs, `architecture.md`, per-task files, migration plans, or TODO inventories.
-- Do not start anything from `## Next` or `## Someday` unless explicitly asked.
-- Do not edit, commit, or clear `## Now` during planning.
+- `SCOPE: proceed` — the whole change is one slice verified one way. Justify why it
+  needs no split.
+- `SCOPE: decompose` — more than one recipe applies → propose an ordered `- [ ]`
+  sub-checklist, one box per component/recipe, each independently verifiable.
+- `SCOPE: split` — this is really two *items*; propose rewriting `Now` and refiling
+  the extra part to `Next`/`Someday`.

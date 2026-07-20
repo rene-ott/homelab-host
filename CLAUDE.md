@@ -25,40 +25,116 @@ and deploys workloads automatically after bootstrap.
 
 `docs/planning/TASKS.md` is the single living plan:
 
-- `## Now` — the one thing in flight, kept short
-- `## Next` — ordered shortlist
-- `## Someday` — unordered ideas and parked implementation notes
-
-Loop:
-
-1. Pick one item from `Next`
-2. Write it into `Now`
-3. Build only that item
-4. Verify it
-5. Commit it
-6. Clear `Now`
+- `## Now` — the one thing in flight, kept short; may carry an ordered `- [ ]` sub-checklist
+- `## Next` — ordered shortlist (top = highest priority)
+- `## Someday` — unordered ideas, parked notes, and undecided questions
 
 Do not create status fields, per-task files, migration plans, TODO inventories, changelogs, or
-additional planning documents.
+additional planning documents. The `- [ ]` sub-checklist on a `Now` item is the *only*
+decomposition surface. Current/future intent lives here; shipped history lives in git.
 
 ## Claude Code Operating Mode
 
-Work in small, bounded passes.
+Work in small, bounded passes. Before editing, read this file and `docs/planning/TASKS.md`.
+`TASKS.md` is the only planning source. Work only the current `## Now` item (or its first
+unchecked box) unless the human explicitly says otherwise. Never start anything from `## Next`
+or `## Someday` on your own. Do not commit, clear `Now`, or start the next item unless asked.
+Commit messages must not contain `Co-Authored-By`, Claude references, or any AI-attribution
+trailer.
 
-Before editing, read this file and `docs/planning/TASKS.md`. Treat `TASKS.md` as the only planning
-source. Implement only the current `## Now` item unless the human explicitly asks otherwise.
+### The loop
 
-Use four modes:
+Each phase answers one question and returns a named result. The question tells you which phase to
+invoke; the result is what the next phase reads. Commands in `.claude/commands/` are thin entry
+points into these phases — they do not restate this contract.
 
-1. **Scope** — summarize the current task, scope, non-scope, likely files, safe order, and verification.
-2. **Implement** — make the smallest coherent change for `Now` only.
-3. **Review** — inspect the diff for scope creep, rule violations, architecture issues, and missing verification.
-4. **Close** — after verification, suggest a commit message and the `TASKS.md` edit that clears `Now`.
+- **Assess** (`/assess`, read-only) — *"should we do this, and what would it entail?"* For a
+  `Next`/`Someday` item that is a question, not a decision. Judges best-practice fitness first,
+  then (if sound) rewrites the stub into a decided, scope-ready item — or settles it
+  decided-against. Declares the item's classification (below). Changes no code.
+  → `ASSESS: recommended | not recommended | needs input`.
+- **Promote** (`/next`) — *"what am I working on?"* Move the top `Next` item verbatim into `Now`
+  (keeping any structure Assess added). Refuse if `Now` is non-empty; don't auto-pull from
+  `Someday`. → `PROMOTED: <item> | BLOCKED: Now holds <item> | EMPTY: Next`.
+- **Scope** (`/scope`, read-only, Plan Mode) — *"how do I do this safely?"* Declares the task
+  **classification** and the **verification plan**, lists in/out-of-scope, files, safe order.
+  A plan without a verification section is invalid. Prefers **decompose** (below).
+  → `SCOPE: proceed | decompose | split`.
+- **Implement** (`/implement`) — *"make the smallest correct change."* One box only if `Now` has
+  a checklist; then stop. → a diff summary.
+- **Verify** (`/verify`) — *"does it work?"* Executes the verification the plan specified — it does
+  not re-derive it. Unrunnable steps are `DEFERRED` with a reason, never silently skipped.
+  → `VERIFIED | FAILED`.
+- **Review** (`/review`) — *"did I stay in bounds and satisfy this task type?"* Walks the primary
+  type's checklist plus scope-creep and invariant checks. → `OK to close | Needs changes`.
+- **Close** (`/close`, only when asked) — *"bank it and advance the plan."* Refuse unless the
+  latest `/verify` was `VERIFIED` **and no edits were made since it ran**. Commit message + the
+  exact `TASKS.md` edit that clears `Now` or checks off the box.
+  → `CLOSED: Now cleared | box N checked | BLOCKED`.
 
-Do not commit, clear `Now`, or start the next task unless explicitly asked.
+`/park` is available in any phase: append found-but-out-of-scope work as a one-line `Someday`
+item and return to the current box — do not chase it.
 
-Commit messages must not contain `Co-Authored-By`, Claude references, AI attribution, or any other
-AI-attribution trailer.
+### Task classification (two axes)
+
+Scope (or Assess) declares both, once. Every later phase reads that declaration.
+
+**Primary — the *nature* of the change. Sets the done-definition and the Review checklist:**
+
+| Primary | Done when |
+|---|---|
+| **refactor** | behavior is unchanged — idempotent, `--check` parity before/after |
+| **new feature** | the new capability works *and* is fully wired (toggle, `site.yml` + `verify.yml` in order, ports via `firewall`, verify task) |
+| **bugfix** | the bug is gone *and* a check proves it won't regress |
+| **architectural** | a changed contract/convention is updated *everywhere it is relied on*, including this file and any on-disk data migration |
+| **docs** | the change is internally consistent with the code and rules |
+
+A change is **architectural** when it alters a shared contract/convention — folder layout,
+variable-naming rule, execution order, the prod/staging split — *not* by how many files it
+touches. A wide change that adds capability without altering an existing contract is a **new
+feature**.
+
+**Secondary — the *components* touched. Each generates one verification recipe:**
+
+| Component | Verified by |
+|---|---|
+| roles | `verify.yml` (+ role tags); `--check --diff` for behavior parity |
+| inventory / group_vars | `--check --diff --limit <env>`; firewall/port correctness |
+| scripts (`scripts/*.sh`) | `shellcheck` + a dry run of each touched script |
+| this file / `TASKS.md` | consistency read against the code |
+| on-disk layout (`~/.homelab-secrets`, `~/.homelab-backups`, `/srv`) | migration/restore check for existing data |
+
+### Decomposition: box = unit of verification
+
+**A box is verified by exactly one recipe.** If a task needs more than one recipe to be done, it
+is more than one box — decompose it, one box per component/recipe. Decompose is the *default*
+Scope outcome; "proceed as one change" is allowed only when the whole change is a single slice
+verified one way. **Split** (the third outcome) is for when the item is really two *items* — kick
+the extra part to `Next`/`Someday` and rewrite `Now`; do not absorb it silently.
+
+A cross-surface task (e.g. a folder-structure change touching inventory + roles + scripts +
+on-disk + this file) is therefore always decomposed — one box per surface, each with its own
+recipe, each leaving the tree working. Example:
+
+    ## Now
+    - **<architectural item>.** <intent, unchanged.>
+      - [ ] inventory: new path vars — `--check --diff --limit staging`
+      - [ ] roles: read new paths — `verify.yml --limit staging`, idempotent re-run
+      - [ ] scripts: updated to new layout — `shellcheck` + dry-run each
+      - [ ] on-disk: migration path for existing data — restore-from-backup dry run
+      - [ ] CLAUDE.md: Secrets Model / Variable Files updated — consistency read
+
+### Verification vocabulary and safety
+
+- Every `site.yml`/`verify.yml` run carries `--limit prod` or `--limit staging` — never a bare
+  run (it hits both hosts; a staging-intended change could touch prod).
+- Read-only `command` probes whose `rc` a later `when:` reads must set `check_mode: false`, or
+  `--check` skips them and registers a fabricated `rc: 0`.
+- A `run_once` task whose `when:` reads a per-host register evaluates the first host only — don't
+  gate per-host logic behind `run_once`.
+- A disabled toggleable role must run none of its own asserts, including under tag-scoped runs.
+- For an **architectural** change, Review must always surface: did a documented invariant in this
+  file change, and is this file updated to match? (Mandatory to check; the human decides.)
 
 ## Core Ansible Rules
 

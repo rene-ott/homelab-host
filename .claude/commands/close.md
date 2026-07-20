@@ -1,26 +1,19 @@
-Close the current task after verification.
+Run the **Close** phase from the workflow contract in `CLAUDE.md`. Do not commit
+unless explicitly asked.
 
-Read:
+**Refuse to close unless the latest `/verify` returned `VERIFIED` AND no edits were
+made since that verify ran** (deferred steps allowed only with their stated reason).
+If verification is missing or stale (any change touched the tree after it), say so
+and stop — re-run `/verify` first.
 
-- `CLAUDE.md`
-- `docs/planning/TASKS.md`
-
-Inspect the current diff and recent verification output in the conversation.
-
-Do not commit unless explicitly asked.
-
-Return:
+Then inspect the current diff and return:
 
 1. Whether anything blocks commit
-2. Concise diff summary
-3. A commit message with no `Co-Authored-By`, Claude reference, AI attribution, or AI trailer
-4. The exact `TASKS.md` edit that clears `## Now`
-5. Any follow-up items that should be added to `## Someday`, only if they are genuinely not already there
+2. A concise diff summary
+3. A commit message — no `Co-Authored-By`, Claude reference, or AI trailer
+4. The exact `TASKS.md` edit:
+   - sub-checklist with boxes remaining → check off the completed box, leave the item in `Now`
+   - last box, or no checklist → clear `Now` entirely
+5. Any genuinely-new follow-up for `## Someday` (only if not already there)
 
-Rules:
-
-- Do not create or update `LOG.md`.
-- Do not recreate `docs/architecture.md`.
-- Do not invent shipped history outside git.
-- Do not clear `## Now` unless verification has passed.
-- Do not start the next task.
+Do not clear `Now` or check a box unless verification passed. Do not start the next item.

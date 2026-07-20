@@ -1,36 +1,24 @@
-Review the current working tree.
+Run the **Review** phase from the workflow contract in `CLAUDE.md`. Do not edit files.
 
-Do not edit files.
+Read the plan's declared `PRIMARY` type and walk its checklist:
 
-Read:
+- **refactor** → behavior unchanged: idempotent, `--check` parity, `verify.yml` still green
+- **new feature** → fully wired: toggle, `site.yml` + `verify.yml` in order, ports via
+  `firewall`, verify task present
+- **bugfix** → the bug is fixed *and* a check would catch its regression
+- **architectural** → the changed contract is updated everywhere relied on; **always
+  surface**: did a documented invariant in `CLAUDE.md` change, and is `CLAUDE.md`
+  updated to match? (mandatory to check; human decides)
+- **docs** → internally consistent with the code
 
-- `CLAUDE.md`
-- `docs/planning/TASKS.md`
+Then, for every type:
 
-Inspect the diff and report:
+1. Diff implements only the current `## Now` item (or its current box) — no scope
+   creep into `## Next` / `## Someday`
+2. No violation of `CLAUDE.md` invariants (ports, K3s-apps, secrets, always-on roles,
+   variable naming)
+3. No workflow-trap hit (`--limit`, `check_mode`, `run_once`, disabled-role asserts)
+4. Whether `/verify` has run and what it returned
 
-1. Whether the diff implements only the current `## Now` task
-2. Any scope creep into `## Next` or `## Someday`
-3. Any violation of `CLAUDE.md`
-4. Any likely Ansible or idempotency issue
-5. Any secret-handling risk
-6. Any firewall/port ownership violation
-7. Any missing verification
-
-Pay special attention to:
-
-- K3s apps must not be added to this Ansible repo
-- host-level ports must live only in `inventory/group_vars/homelab/vars.yml`
-- secrets must not be committed in plaintext
-- private SSH keys must not be copied except the documented Flux deploy-key carve-out
-- `security` and `firewall` must remain always-on
-- toggleable roles must use `<role>_enabled | default(true) | bool`
-- disabled roles must not run their own asserts
-- no `LOG.md`, changelogs, `architecture.md`, per-task files, migration plans, or TODO inventories
-
-Return:
-
-- `OK to verify` or `Needs changes`
-- blockers
-- non-blocking notes
-- exact verification commands
+Return `OK to close` or `Needs changes`, then blockers, non-blocking notes, and — if
+`/verify` hasn't run — a note to run it before `/close`.
