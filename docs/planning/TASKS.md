@@ -10,20 +10,6 @@ lives in git.
 
 ## Now
 
-- **Collapse `flux_preflight` + `flux_bootstrap` into one `flux` role.** Preflight is a precondition
-  of bootstrap, not a separate concern: the two `_enabled` toggles cannot move independently, the
-  `flux-system` namespace probe is duplicated verbatim in both roles, and CLAUDE.md's variable-naming
-  rule needs a carve-out ("vars shared by the two flux roles") just to accommodate the split. One
-  role, one `flux_enabled`, one `flux` tag, with `tasks/preflight.yml` + `tasks/main.yml` +
-  `tasks/verify.yml`. Each precondition is gated by the mutation it protects, so a converged host
-  makes no network call and runs no localhost asserts. Fixes two bugs on the way: `run_once` on a
-  task whose `when` reads a per-host register evaluates against the first host only (so a no-limit
-  run skipped the reachability gate for `atlas-stg` whenever `atlas` was already bootstrapped), and
-  read-only `command` probes without `check_mode: false` skip under `--check` while registering a
-  fabricated `rc: 0` — so a dry run against a never-bootstrapped host read "flux-system exists" and
-  reported nothing to do. Drops the interactive `pause` for a fail-fast assert that prints the
-  deploy public key and the GitHub URL, making `site.yml` unattended-safe.
-
 ## Next
 
 ## Someday
