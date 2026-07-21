@@ -13,15 +13,17 @@ Ansible project for a single-node Debian server and its K3s platform. Manages th
 ### 2. Initialise workstation
 
 ```bash
-./scripts/init-workstation.sh
+./scripts/init-workstation.sh                     # prod host (atlas, the default)
+HL_HOST=atlas-stg ./scripts/init-workstation.sh   # staging host
 ```
 
-Prompts for the server address and generates missing keys. Safe to re-run. Keys land in:
+Runs per host: prompts for that host's server address and generates its missing keys. Safe to
+re-run. Keys land under `~/.homelab/local/<host>/` (`<host>` = `atlas` / `atlas-stg`):
 
 ```
-~/.homelab-secrets/ssh/ansible        # Ansible SSH key
-~/.homelab-secrets/ssh/flux-deploy    # Flux deploy key
-~/.homelab-secrets/age/homelab.agekey # SOPS age key
+~/.homelab/local/<host>/bootstrap_user/id_ed25519  # Ansible SSH key
+~/.homelab/local/<host>/flux/deploy_key            # Flux deploy key
+~/.homelab/local/<host>/flux/sops-age.key          # SOPS age key
 ```
 
 The script prints the Flux deploy public key and the GitHub URL to register it at — do that before deploying, since `site.yml` asserts the key can reach the repo rather than prompting.
@@ -32,7 +34,7 @@ After generating the age key, register its public key in `homelab-cluster` befor
 2. Encrypt secrets and commit only the encrypted output:
 
 ```bash
-SOPS_AGE_KEY_FILE=~/.homelab-secrets/age/homelab.agekey \
+SOPS_AGE_KEY_FILE=~/.homelab/local/atlas/flux/sops-age.key \
   sops -e -i <secret>.sops.yaml
 ```
 
@@ -62,7 +64,7 @@ ansible-playbook playbooks/site.yml --tags flux
 Beforehand: add the deploy public key (printed by `init-workstation.sh`) to homelab-cluster's GitHub deploy keys with **Allow write access**, and register the age public key in `.sops.yaml` in homelab-cluster:
 
 ```bash
-SOPS_AGE_KEY_FILE=~/.homelab-secrets/age/homelab.agekey \
+SOPS_AGE_KEY_FILE=~/.homelab/local/atlas/flux/sops-age.key \
   sops -e -i <secret>.sops.yaml   # encrypt before committing
 ```
 

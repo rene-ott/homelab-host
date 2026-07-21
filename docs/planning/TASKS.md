@@ -23,18 +23,19 @@ lives in git.
   `k3s kubectl -n flux-system get kustomization flux-system` instead, which only a completed
   bootstrap creates.
 
-- **Redesign `~/.homelab-secrets/` and `~/.homelab-backups/` folder structure** to be more
-  role-oriented, given roles are enabled per-host on a role basis (multihost context).
-- **Rewrite the Ansible code to match** the redesigned secrets/backups folder structure.
-- **Consolidate the `scripts/*.sh` helpers** — merge overlapping scripts and define shared constants
-  / library paths in one place, done with multihost in mind (`REMOTE_HOST` is currently hardcoded to
-  `atlas` in the backup scripts; the SSH-alias helper in `init-workstation.sh` is a first step).
+- **Finish the `~/.homelab` migration for the backup helpers.** `backup-secrets.sh`,
+  `backup-config.sh`, `backup-wireguard.sh`, and `wireguard-client.sh` still read the legacy
+  `~/.homelab-secrets`/`~/.homelab-backups` paths and hardcode `REMOTE_HOST=atlas`. Rewire them
+  onto `scripts/lib/paths.sh` (`HL_*`, per-host `HL_HOST`), then delete the old dirs and remove the
+  temporary WireGuard-off-limits rule from CLAUDE.md. (The secrets/backups redesign, the per-host
+  Ansible var rewrite, and `init-workstation.sh` are already migrated.)
 
 - **Onboard a real second host** once one exists — no hostname/machine to provision yet. Add it
   to `inventory/hosts.yml`/`inventory/bootstrap.yml`, write its `inventory/host_vars/<hostname>.yml`
-  with the relevant `*_enabled: false` overrides and a trimmed firewall port list, hand-edit its
-  SSH alias into `~/.homelab-secrets/ssh/config`, then run `bootstrap-user.yml` → `site.yml` →
-  `verify.yml` with `--limit <hostname>`.
+  with the relevant `*_enabled: false` overrides and a trimmed firewall port list, run
+  `HL_HOST=<hostname> ./scripts/init-workstation.sh` to create its `~/.homelab/local/<hostname>/`
+  keys and SSH alias, then run `bootstrap-user.yml` → `site.yml` → `verify.yml` with
+  `--limit <hostname>`.
 
 - **Re-encrypt the WireGuard backup** — `backup-wireguard.sh` currently writes plaintext
   keys under `~/.homelab-backups/wireguard/` as a temporary get-the-data measure. Restore

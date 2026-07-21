@@ -3,6 +3,13 @@
 Guidance for Claude Code in this repo. This is the single rules and architecture file for the
 host Ansible project.
 
+## Temporary Rules
+
+> **TEMPORARY (remove when the `~/.homelab` restructure is finished):** WireGuard-role-related
+> parts are off-limits. When updating anything, do **not** touch the `wireguard` role,
+> `scripts/wireguard-client.sh`, `scripts/backup-wireguard.sh`, the `HL_WIREGUARD*` paths, or the
+> WireGuard vars/comments in `inventory/group_vars/homelab/vars.yml`. Leave them exactly as-is.
+
 ## Repo Purpose
 
 `homelab-host` is the Ansible project for the Debian homelab server and its K3s platform. It
@@ -102,7 +109,7 @@ feature**.
 | inventory / group_vars | `--check --diff --limit <env>`; firewall/port correctness |
 | scripts (`scripts/*.sh`) | `shellcheck` + a dry run of each touched script |
 | this file / `TASKS.md` | consistency read against the code |
-| on-disk layout (`~/.homelab-secrets`, `~/.homelab-backups`, `/srv`) | migration/restore check for existing data |
+| on-disk layout (`~/.homelab`, `/srv`) | migration/restore check for existing data |
 
 ### Decomposition: box = unit of verification
 
@@ -213,8 +220,10 @@ combinations, including tag-scoped runs.
 ## Access Model
 
 A human admin user is created during Debian install. Before touching the server, run
-`scripts/init-workstation.sh` on the workstation. It creates `~/.homelab-secrets/`, generates the
-Ansible SSH key, Flux deploy key, and SOPS age key, and writes the SSH aliases (`atlas`, `atlas-stg`).
+`scripts/init-workstation.sh` on the workstation, once per host (target with `HL_HOST`, default
+`atlas`; e.g. `HL_HOST=atlas-stg ./scripts/init-workstation.sh`). It creates that host's
+`~/.homelab/local/<host>/` tree, generates its Ansible SSH key, Flux deploy key, and SOPS age key,
+and writes that host's SSH alias into the shared `~/.homelab/local/ssh_config.partial`.
 
 Two environments share this inventory: `atlas` (prod → `clusters/core`) and `atlas-stg`
 (staging → `clusters/core-stg`). They differ only by `flux_path`; the nested `prod` /
@@ -239,15 +248,16 @@ password login.
 
 ## Secrets Model
 
-Local workstation secrets live under `~/.homelab-secrets/` and are never committed.
+Local workstation secrets live under `~/.homelab/local/` (per host) and are never committed.
+Layout is defined once as sourceable `HL_*` variables in `scripts/lib/paths.sh`.
 
-Important paths:
+Important paths (`<host>` = `atlas` / `atlas-stg`):
 
-- `~/.homelab-secrets/ssh/ansible`
-- `~/.homelab-secrets/ssh/flux-deploy`
-- `~/.homelab-secrets/ssh/config`
-- `~/.homelab-secrets/age/homelab.agekey`
-- `~/.homelab-secrets/wireguard/`
+- `~/.homelab/local/<host>/bootstrap_user/id_ed25519`
+- `~/.homelab/local/<host>/flux/deploy_key`
+- `~/.homelab/local/ssh_config.partial`
+- `~/.homelab/local/<host>/flux/sops-age.key`
+- `~/.homelab-secrets/wireguard/` (WireGuard client keys — not migrated yet; see Temporary Rules)
 
 The Flux deploy key is the only private-key carve-out: `flux` may stage it temporarily on
 the server with `0600` permissions and `no_log: true`, run `flux bootstrap git`, then delete the temp
@@ -292,7 +302,9 @@ Traefik ingress, or Samba directly to the internet.
 
 ## Backup Scripts
 
-Backup helpers are local/manual scripts, not part of `site.yml`:
+Backup helpers are local/manual scripts, not part of `site.yml`. These still read the legacy
+`~/.homelab-secrets`/`~/.homelab-backups` paths (kept in place for them); rewiring them onto
+`scripts/lib/paths.sh` / the `~/.homelab` tree is a pending follow-up:
 
 - `scripts/backup-secrets.sh` backs up selected `~/.homelab-secrets` files with `age -p`
 - `scripts/backup-config.sh` backs up/restores `/srv/config`

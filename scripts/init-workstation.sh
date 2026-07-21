@@ -1,146 +1,224 @@
 #!/usr/bin/env bash
 # One-time workstation initialisation — safe to re-run.
-# Creates ~/.homelab-secrets/ tree, generates missing keys, writes the SSH alias.
+# Creates the ~/.homelab tree for one host, generates missing keys, and writes the SSH alias.
+# Target a specific host with HL_HOST (default: atlas), e.g. HL_HOST=atlas-stg ./init-workstation.sh
+
 set -euo pipefail
 
-SECRETS_DIR="${HOME}/.homelab-secrets"
-SSH_DIR="${SECRETS_DIR}/ssh"
-AGE_DIR="${SECRETS_DIR}/age"
-BACKUP_DIR="${HOME}/.homelab-backups"
-SSH_CONFIG="${SSH_DIR}/config"
-AGE_KEY="${AGE_DIR}/homelab.agekey"
-ANSIBLE_KEY="${SSH_DIR}/ansible"
-FLUX_KEY="${SSH_DIR}/flux-deploy"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=lib/paths.sh
+source "${SCRIPT_DIR}/lib/paths.sh"
+
 FLUX_DEPLOY_KEYS_URL="https://github.com/rene-ott/homelab-cluster/settings/keys"
 
-ok()   { printf '    ✓ %s\n' "$*"; }
-warn() { printf '    ! %s\n' "$*" >&2; }
-step() { printf '\nStep %s: %s\n' "$1" "$2"; }
-ask()  { local ans; read -rp "    Generate? [y/N]: " ans; [[ "${ans,,}" == "y" ]]; }
+main() {
+  step 1 "Create base directory structure"
+  if [[ ! -f "${HL_GLOBAL_SSH_CONFIG}" ]]; then
+    warn "~/.ssh/config not found — create it first (e.g. touch ~/.ssh/config && chmod 600 ~/.ssh/config)"
+    exit 1
+  fi
+  ensure_private_dir "${HL_ROOT}" "${HL_LOCAL}" "${HL_BACKUPS}" "${HL_BACKUPS_LOCAL}" "${HL_BACKUPS_SERVER}"
+  ok "~/.homelab/{local,backups/{local,server}} ready"
 
-# Print the HostName configured for a given Host alias in ${SSH_CONFIG}, or nothing. Parses per
-# alias (a naive grep would return the first block's HostName for every host).
-existing_hostname() {
-  [[ -f "${SSH_CONFIG}" ]] || return 0
-  awk -v want="$1" '
-    $1 == "Host"     { current = ($2 == want) }
-    current && $1 == "HostName" { print $2; exit }
-  ' "${SSH_CONFIG}"
-}
+  step 2 "Host + SSH alias (${HL_SSH_CONFIG})"
+  read -rp "    Host alias [${HL_HOST}]: " entered_host
+  export HL_HOST="${entered_host:-${HL_HOST}}"
+  source "${SCRIPT_DIR}/lib/paths.sh"
+  ensure_private_dir "${HL_HOST_LOCAL}"
+  write_ssh_host_alias
 
-# Append a Host block for <alias> -> <address> to ${SSH_CONFIG} (all homelab hosts use the same
-# ansible user and key).
-write_ssh_alias() {
-  cat >> "${SSH_CONFIG}" <<EOF
-Host $1
-  HostName $2
-  User ansible
-  IdentityFile ~/.homelab-secrets/ssh/ansible
+  step 3 "Ansible SSH key (${HL_BOOTSTRAP_USER_KEY})"
+  generate_ssh_key_if_missing "${HL_BOOTSTRAP_USER_KEY}" "${HL_BOOTSTRAP_USER}" "homelab/${HL_HOST}/ansible" "skipped — bootstrap-user.yml will fail without it"
+
+  step 4 "Flux deploy SSH key (${HL_FLUX_DEPLOY_KEY})"
+  generate_ssh_key_if_missing "${HL_FLUX_DEPLOY_KEY}" "${HL_FLUX}" "homelab/${HL_HOST}/flux-deploy" "skipped — the flux role will fail without it only if this host runs Flux"
+
+  step 5 "SOPS age key (${HL_FLUX_AGE_KEY})"
+  generate_age_key_if_missing "${HL_FLUX_AGE_KEY}" "${HL_FLUX}" "skipped — the flux role will fail without it only if this host runs Flux"
+
+  step 6 "Register the Flux deploy key on GitHub"
+  # site.yml is non-interactive: it asserts the key can reach the repo and fails with this same
+  # key and URL rather than prompting. Printing here is what makes that assert actionable.
+  if [[ -f "${HL_FLUX_DEPLOY_KEY}.pub" ]]; then
+    printf '    Add this public key as a deploy key at\n      %s\n' "${FLUX_DEPLOY_KEYS_URL}"
+    printf '    Enable "Allow write access" — Flux pushes the gotk-* manifests on first bootstrap.\n\n'
+    printf '      %s\n' "$(cat "${HL_FLUX_DEPLOY_KEY}.pub")"
+  else
+    warn "no deploy key yet — re-run this script to generate it"
+  fi
+
+  cat <<'EOF'
+
+Done. Run:
+
+  ansible-playbook playbooks/bootstrap-user.yml -i inventory/bootstrap.yml -u <admin> --ask-pass --ask-become-pass
+
 EOF
 }
 
-# ── Step 1: directory tree ────────────────────────────────────────────────────
-step 1 "Create directory structure"
-mkdir -p "${SSH_DIR}" "${AGE_DIR}" "${BACKUP_DIR}"
-chmod 700 "${SECRETS_DIR}" "${SSH_DIR}" "${AGE_DIR}" "${BACKUP_DIR}"
-ok "~/.homelab-secrets/{ssh,age} and ~/.homelab-backups ready"
+ok() {
+  printf '    ✓ %s\n' "$*"
+}
 
-# ── Step 2: SSH aliases ───────────────────────────────────────────────────────
-# This file is fully script-owned, so it is regenerated from scratch each run. atlas (prod) is
-# required; atlas-stg (staging) is optional. Existing addresses are kept unless overridden.
-step 2 "SSH aliases  (~/.homelab-secrets/ssh/config)"
-prod_existing="$(existing_hostname atlas)"
-stg_existing="$(existing_hostname atlas-stg)"
+warn() {
+  printf '    ! %s\n' "$*" >&2
+}
 
-if [[ -n "${prod_existing}" ]]; then
-  read -rp "    atlas (prod) IP or DNS name (current: ${prod_existing}, leave empty to keep): " prod_addr
-else
-  read -rp "    atlas (prod) IP or DNS name: " prod_addr
-fi
-prod_addr="${prod_addr:-${prod_existing}}"
+step() {
+  printf '\nStep %s: %s\n' "$1" "$2"
+}
 
-if [[ -n "${stg_existing}" ]]; then
-  read -rp "    atlas-stg (staging) IP or DNS name (current: ${stg_existing}, empty to keep, '-' to remove): " stg_addr
-else
-  read -rp "    atlas-stg (staging) IP or DNS name (optional, leave empty to skip): " stg_addr
-fi
-stg_addr="${stg_addr:-${stg_existing}}"
-[[ "${stg_addr}" == "-" ]] && stg_addr=""
+ask_generate() {
+  local ans
 
-: > "${SSH_CONFIG}"
-chmod 600 "${SSH_CONFIG}"
-if [[ -n "${prod_addr}" ]]; then
-  write_ssh_alias atlas "${prod_addr}"
-  ok "atlas -> ${prod_addr}"
-else
-  warn "no atlas address — prod SSH alias not written; bootstrap-user.yml will fail"
-fi
-if [[ -n "${stg_addr}" ]]; then
-  write_ssh_alias atlas-stg "${stg_addr}"
-  ok "atlas-stg -> ${stg_addr}"
-else
-  ok "atlas-stg not configured (staging skipped)"
-fi
+  read -rp "    Generate? [y/N]: " ans
+  [[ "${ans,,}" == "y" ]]
+}
 
-if [[ -s "${SSH_CONFIG}" ]]; then
-  GLOBAL_SSH="${HOME}/.ssh/config"
-  INCLUDE="Include ~/.homelab-secrets/ssh/config"
-  mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
-  if [[ -f "${GLOBAL_SSH}" ]] && grep -qF "${INCLUDE}" "${GLOBAL_SSH}"; then
-    ok "~/.ssh/config already includes ~/.homelab-secrets/ssh/config"
-  else
-    tmp="$(mktemp)"
-    { echo "${INCLUDE}"; [[ -f "${GLOBAL_SSH}" ]] && cat "${GLOBAL_SSH}" || true; } > "${tmp}"
-    mv "${tmp}" "${GLOBAL_SSH}"
-    chmod 600 "${GLOBAL_SSH}"
-    ok "Include added to ~/.ssh/config"
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || {
+    warn "missing required command: $1"
+    return 1
+  }
+}
+
+ensure_private_dir() {
+  install -d -m 700 "$@"
+}
+
+write_global_ssh_include() {
+  local include="Include ${HL_SSH_CONFIG/#$HOME/\~}"
+  local ssh_dir
+  local tmp
+
+  ssh_dir="$(dirname -- "${HL_GLOBAL_SSH_CONFIG}")"
+  ensure_private_dir "${ssh_dir}"
+
+  if [[ -f "${HL_GLOBAL_SSH_CONFIG}" ]] &&
+     grep -qxF "${include}" "${HL_GLOBAL_SSH_CONFIG}"; then
+    ok "~/.ssh/config already includes ${HL_SSH_CONFIG/#$HOME/\~}"
+    return
   fi
-fi
 
-# ── Step 3: ansible SSH key ───────────────────────────────────────────────────
-step 3 "Ansible SSH key  (${ANSIBLE_KEY})"
-if [[ -f "${ANSIBLE_KEY}" ]]; then
-  ok "already exists — skipping"
-elif ask; then
-  ssh-keygen -t ed25519 -C "homelab-ansible" -f "${ANSIBLE_KEY}" -N ""
-  ok "generated"
-else
-  warn "skipped — bootstrap-user.yml will fail without it"
-fi
+  tmp="$(mktemp)"
 
-# ── Step 4: flux-deploy SSH key ───────────────────────────────────────────────
-step 4 "Flux deploy SSH key  (${FLUX_KEY})"
-if [[ -f "${FLUX_KEY}" ]]; then
-  ok "already exists — skipping"
-elif ask; then
-  ssh-keygen -t ed25519 -C "homelab/flux-deploy" -f "${FLUX_KEY}" -N ""
-  ok "generated"
-else
-  warn "skipped — the flux role will fail without it"
-fi
+  {
+    printf '%s\n' "${include}"
+    [[ -f "${HL_GLOBAL_SSH_CONFIG}" ]] && cat "${HL_GLOBAL_SSH_CONFIG}"
+  } > "${tmp}"
 
-# ── Step 5: SOPS age key ─────────────────────────────────────────────────────
-step 5 "SOPS age key  (${AGE_KEY})"
-if [[ -f "${AGE_KEY}" ]]; then
-  ok "already exists — skipping"
-elif ask; then
-  age-keygen -o "${AGE_KEY}"
-  chmod 600 "${AGE_KEY}"
-  ok "generated"
-else
-  warn "skipped — the flux role will fail without it"
-fi
+  install -m 600 "${tmp}" "${HL_GLOBAL_SSH_CONFIG}"
+  rm -f "${tmp}"
 
-# ── Step 6: register the deploy key on GitHub ────────────────────────────────
-# site.yml is non-interactive: it asserts the key can reach the repo and fails with this same
-# key and URL rather than prompting. Printing here is what makes that assert actionable.
-step 6 "Register the Flux deploy key on GitHub"
-if [[ -f "${FLUX_KEY}.pub" ]]; then
-  printf '    Add this public key as a deploy key at\n      %s\n' "${FLUX_DEPLOY_KEYS_URL}"
-  printf '    Enable "Allow write access" — Flux pushes the gotk-* manifests on first bootstrap.\n\n'
-  printf '      %s\n' "$(cat "${FLUX_KEY}.pub")"
-else
-  warn "no deploy key yet — re-run this script to generate it"
-fi
+  ok "Include added to ~/.ssh/config"
+}
 
-printf '\nDone. Run: ansible-playbook playbooks/bootstrap-user.yml -i inventory/bootstrap.yml -u <admin> --ask-pass --ask-become-pass\n'
+current_host_addr() {
+  [[ -f "${HL_SSH_CONFIG}" ]] || return 0
+
+  awk -v host="Host ${HL_HOST}" '
+    $0 == host { in_host=1; next }
+    in_host && /^Host / { in_host=0 }
+    in_host && /^[[:space:]]*HostName[[:space:]]+/ { print $2; exit }
+  ' "${HL_SSH_CONFIG}"
+}
+
+remove_host_block() {
+  [[ -f "${HL_SSH_CONFIG}" ]] || return 0
+
+  awk -v host="Host ${HL_HOST}" '
+    $0 == host { skip=1; next }
+    skip && /^Host / { skip=0 }
+    !skip { print }
+  ' "${HL_SSH_CONFIG}"
+}
+
+write_ssh_host_alias() {
+  local existing_addr
+  local server_addr
+  local existing_body
+  local tmp
+
+  existing_addr="$(current_host_addr || true)"
+
+  if [[ -n "${existing_addr}" ]]; then
+    read -rp "    Server IP or DNS name (current: ${existing_addr}, leave empty to keep): " server_addr
+  else
+    read -rp "    Server IP or DNS name: " server_addr
+  fi
+
+  server_addr="${server_addr:-${existing_addr}}"
+
+  if [[ -z "${server_addr}" ]]; then
+    warn "no server address — SSH alias not written; bootstrap-user.yml will fail"
+    return
+  fi
+
+  existing_body="$(remove_host_block || true)"
+  tmp="$(mktemp)"
+
+  {
+    [[ -n "${existing_body}" ]] && printf '%s\n\n' "${existing_body}"
+
+    cat <<EOF
+Host ${HL_HOST}
+  HostName ${server_addr}
+  User ansible
+  IdentityFile ${HL_BOOTSTRAP_USER_KEY/#$HOME/\~}
+EOF
+  } > "${tmp}"
+
+  install -m 600 "${tmp}" "${HL_SSH_CONFIG}"
+  rm -f "${tmp}"
+
+  ok "written (${HL_HOST} -> ${server_addr})"
+
+  write_global_ssh_include
+}
+
+generate_ssh_key_if_missing() {
+  local key="$1"
+  local dir="$2"
+  local comment="$3"
+  local skip_message="$4"
+
+  if [[ -f "${key}" ]]; then
+    ok "already exists — skipping"
+    return
+  fi
+
+  ensure_private_dir "${dir}"
+
+  if ask_generate; then
+    need_cmd ssh-keygen
+    ssh-keygen -t ed25519 -C "${comment}" -f "${key}" -N ""
+    ok "generated"
+  else
+    warn "${skip_message}"
+  fi
+}
+
+generate_age_key_if_missing() {
+  local key="$1"
+  local dir="$2"
+  local skip_message="$3"
+
+  if [[ -f "${key}" ]]; then
+    ok "already exists — skipping"
+    return
+  fi
+
+  ensure_private_dir "${dir}"
+
+  if ask_generate; then
+    need_cmd age-keygen
+    age-keygen -o "${key}"
+    chmod 600 "${key}"
+    ok "generated"
+  else
+    warn "${skip_message}"
+  fi
+}
+
+main "$@"

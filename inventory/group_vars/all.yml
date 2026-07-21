@@ -2,8 +2,10 @@
 # Global bootstrap/access variables — apply to every host (and the bootstrap inventory).
 # Operational, per-environment vars live in group_vars/homelab/vars.yml, not here.
 
-homelab_local_ssh_key_dir: "~/.homelab-secrets/ssh"
+# Per-host workstation secrets root (~/.homelab/local/<host>/…), keyed on inventory_hostname
+# (atlas / atlas-stg). Role-specific key paths derive from this. See scripts/lib/paths.sh.
+homelab_local_host_dir: "~/.homelab/local/{{ inventory_hostname }}"
 
 bootstrap_user_name: ansible
-bootstrap_user_key_file: "{{ homelab_local_ssh_key_dir }}/ansible"
+bootstrap_user_key_file: "{{ homelab_local_host_dir }}/bootstrap_user/id_ed25519"
 bootstrap_user_sudo_group: sudo
